@@ -31,7 +31,25 @@ body{background:var(--bg);color:var(--ink);font-family:var(--display);overflow:h
   #app{inset:auto;top:0;left:100vw;width:100vh;width:100dvh;height:100vw;transform-origin:0 0;transform:rotate(90deg)}
 }
 #scene{position:absolute;inset:0}
-#cv{position:absolute;inset:0;width:100%;height:100%;display:block}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.menu{display:flex;flex-direction:column;gap:7px;justify-content:center}
+.mbtn{font-family:var(--display);font-size:20px;font-weight:700;letter-spacing:.02em;text-align:left;padding:11px 14px;border-radius:6px;border:1px solid #2f3a36;background:#202825;color:var(--ink);cursor:pointer}
+.mbtn.pri{background:var(--amber);border-color:var(--amber);color:#1a1205}
+.mbtn.quit{color:#ff8b7f;border-color:#5a2a25;background:#1d1514}
+.mbtn small{display:block;font-size:12px;font-weight:500;color:inherit;opacity:.7}
+.sub{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.sets{display:flex;flex-direction:column;gap:12px}
+.set{display:grid;grid-template-columns:150px minmax(0,1fr) 42px;gap:10px;align-items:center;font-family:system-ui,sans-serif;font-size:13px}
+.set>span:last-child{font-family:var(--mono);font-size:12px;color:var(--dim);text-align:right}
+.set input[type=range]{width:100%;accent-color:var(--amber)}
+.seg{display:flex;flex-wrap:wrap;gap:4px}
+.seg button{font-family:var(--display);font-size:14px;font-weight:600;padding:6px 10px;border-radius:4px;border:1px solid #2f3a36;background:#202825;color:var(--dim);cursor:pointer}
+.seg button.on{background:#14263b;border-color:var(--m3);color:var(--ink)}
+.chk{display:flex;gap:8px;align-items:center;font-family:system-ui,sans-serif;font-size:13px;cursor:pointer}
+.chk input{accent-color:var(--amber);width:18px;height:18px}
+.note{font-family:system-ui,sans-serif;font-size:12px;color:var(--dim);line-height:1.45}
+.b.quit{color:#ff8b7f;border-color:#5a2a25}
+@media (max-width:620px){.set{grid-template-columns:110px minmax(0,1fr) 36px}}
 .glass{background:var(--glass);border:1px solid var(--line);border-radius:6px;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
 #hud{position:absolute;top:6px;left:16px;right:16px;height:42px;display:flex;align-items:center;gap:14px;padding:0 10px;white-space:nowrap;overflow:hidden}
 .lbl{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
@@ -124,11 +142,11 @@ th{color:var(--dim);font-weight:500;font-size:10px;letter-spacing:.08em;text-tra
     <button id="bDoor" class="b door">Ajtók nyitása</button>
     <button id="bHorn" class="b">Kürt</button>
     <button id="bDir" class="b">Irány</button>
+    <button id="bCam" class="b">Menet</button>
     <button id="bZout" class="b" aria-label="Kicsinyítés">−</button>
     <button id="bZin" class="b" aria-label="Nagyítás">+</button>
-    <button id="bSnd" class="b">Hang</button>
-    <button id="bPause" class="b">Szünet</button>
-    <button id="bFs" class="b hideS">Teljes</button>
+    <button id="bMenu" class="b">Menü</button>
+    <button id="bQuit" class="b quit">Kilépés</button>
   </div>
   <div id="ov"></div>
 </div>
@@ -169,7 +187,15 @@ const round5=s=>Math.round(s/5)*5;
 const routeLen=r=>r.seq.reduce((a,s)=>a+s[2]-s[1]+1,0);
 
 /* ---------- állapot ---------- */
-let R=null,S=null,cfg={route:0,short:true,voice:true},zoom=1,paused=true;
+const DEF={vol:85,vvol:90,voice:'retro',short:true,sparks:true,vib:true,diff:'normal',cam:'menet',route:0};
+let cfg=Object.assign({},DEF);try{Object.assign(cfg,JSON.parse(localStorage.getItem('m3sim.cfg')||'{}'))}catch(e){}
+function saveCfg(){try{localStorage.setItem('m3sim.cfg',JSON.stringify(cfg))}catch(e){}}
+const DIFF={easy:{tol:6,ars:4,n:'Könnyű',d:'±6 m ajtónyitási tűrés, engedékeny ARS.'},normal:{tol:4,ars:2.5,n:'Normál',d:'±4 m tűrés, 2,5 s ARS-türelmi idő.'},sim:{tol:2,ars:1.5,n:'Szimulátor',d:'±2 m tűrés, szigorú ARS, 150 m-en belül nincs távolságkijelzés.'}};
+const tol=()=>DIFF[cfg.diff].tol;
+const CAMS=['menet','fulke','szer','hatra'],CAMN={menet:'Menet',fulke:'Fülke',szer:'Szerelvény',hatra:'Hátra'};
+const cam={mode:CAMS.includes(cfg.cam)?cfg.cam:'menet',z:{menet:1,fulke:3.2,szer:1,hatra:1},off:0,d:0,sw:false,last:0,ppm:0};
+let R=null,S=null,paused=true,ppmNow=10;
+const vib=p=>{if(cfg.vib&&navigator.vibrate)try{navigator.vibrate(p)}catch(e){}};
 const img=new Image();img.src=CAR_IMG;
 
 function buildRoute(ri,short){
@@ -194,7 +220,7 @@ function inGap(s){for(const g of R.gaps){if(g.a>s)return false;if(s<=g.b)return 
 function reset(){
   R=buildRoute(cfg.route,cfg.short);
   const now=new Date();
-  S={t:0,base:now.getHours()*3600+(now.getMinutes()+1)*60,x:0,v:0,dir:1,lever:N0,aCmd:0,eb:false,
+  S={started:false,t:0,base:now.getHours()*3600+(now.getMinutes()+1)*60,x:0,v:0,dir:1,lever:N0,aCmd:0,eb:false,
     doors:1,doorState:'open',doorT:0,cur:0,next:1,served:[true],departed:[],log:[],score:0,onboard:Math.round(rnd(90,140)),
     ars:{t:0,act:false,over:false},pax:[],spawned:[],D:[],rk:0,ax:[],shoe:[],fx:[],flash:0,endT:null,ended:false,runQ:[]};
   for(let i=0;i<NCAR*2;i++)S.D.push({al:0,t:0});
@@ -259,16 +285,17 @@ function exchangeDone(){if(S.cur<0)return true;if(S.D.some(d=>d.al>0))return fal
 
 /* ---------- szikrák ---------- */
 function emitBrakeSparks(dt){
-  const ax=axles();
+  if(!cfg.sparks)return;const ax=axles();
   for(const o of ax){if(Math.random()>dt*16)continue;const wx=S.x-o,n=1+Math.floor(Math.random()*3);
     for(let k=0;k<n;k++)S.fx.push({k:'s',x:wx+rnd(-.25,.25),h:rnd(.02,.12),vx:S.dir*S.v*rnd(-.15,.55)+rnd(-1.5,1.5),vy:rnd(.6,3.8),life:rnd(.2,.55),max:.55})}
 }
 function arc(x,str){
+  sArc(str);if(str>.6)vib(35);
+  if(!cfg.sparks)return;
   S.fx.push({k:'f',x,h:.3,vx:0,vy:0,life:.08+.12*str,max:.08+.12*str,str});
   const n=Math.round(5+16*str);
   for(let k=0;k<n;k++)S.fx.push({k:'a',x:x+rnd(-.3,.3),h:rnd(.15,.4),vx:S.dir*S.v*rnd(.1,.6)+rnd(-3,3),vy:rnd(-.5,3.5),life:rnd(.15,.45),max:.45});
   if(str>.6)S.flash=Math.max(S.flash,.35*str);
-  sArc(str);
 }
 function updFx(dt){
   for(const p of S.fx){p.life-=dt;if(p.k==='f')continue;p.x+=p.vx*dt;p.h+=p.vy*dt;p.vy-=9.8*dt;if(p.h<0){p.h=0;p.vy*=-.3;p.vx*=.5}}
@@ -281,7 +308,7 @@ const A={ctx:null,on:true};
 function aInit(){
   if(A.ctx){A.ctx.resume();return}
   const C=new(window.AudioContext||window.webkitAudioContext)();A.ctx=C;
-  const comp=C.createDynamicsCompressor();A.master=C.createGain();A.master.gain.value=A.on?.85:0;A.master.connect(comp);comp.connect(C.destination);
+  const comp=C.createDynamicsCompressor();A.master=C.createGain();A.master.gain.value=cfg.vol/100*.9;A.master.connect(comp);comp.connect(C.destination);
   const sr=C.sampleRate,wb=C.createBuffer(1,sr*2,sr),w=wb.getChannelData(0);for(let i=0;i<w.length;i++)w[i]=Math.random()*2-1;A.white=wb;
   const bb=C.createBuffer(1,sr*4,sr),b=bb.getChannelData(0);let l=0;for(let i=0;i<b.length;i++){l=(l+.02*(Math.random()*2-1))/1.02;b[i]=l*3.5}
   const loop=buf=>{const s=C.createBufferSource();s.buffer=buf;s.loop=true;s.start();return s};
@@ -299,7 +326,16 @@ function aInit(){
   A.ars=C.createOscillator();A.ars.type='square';A.ars.frequency.value=1180;A.arsG=gain(0);A.ars.connect(filt('lowpass',2500)).connect(A.arsG).connect(A.master);A.ars.start();
   A.ambG=gain(.09);loop(bb).connect(filt('lowpass',160)).connect(A.ambG).connect(A.master);
   A.crF=filt('bandpass',700,.5);A.crG=gain(0);loop(bb).connect(filt('highpass',250)).connect(A.crF).connect(A.crG).connect(A.master);
+  // retro hangosbemondó: hangszóró-zúgás, sercegés, hálózati brumm
+  A.paG=gain(0);A.paG.connect(A.master);
+  loop(wb).connect(filt('bandpass',2600,.8)).connect(gain(.035)).connect(A.paG);
+  const cb=C.createBuffer(1,sr*3,sr),cd=cb.getChannelData(0);for(let i=0;i<cd.length;i++)cd[i]=Math.random()<.0009?(Math.random()*2-1):0;
+  loop(cb).connect(filt('highpass',900,.7)).connect(gain(.9)).connect(A.paG);
+  const hum=C.createOscillator();hum.frequency.value=50;const h2=C.createOscillator();h2.frequency.value=150;hum.connect(gain(.05)).connect(A.paG);h2.connect(gain(.02)).connect(A.paG);hum.start();h2.start();
 }
+function paStart(){if(A.ctx)tp(A.paG.gain,cfg.vvol/100*.9,.08)}
+function paStop(){if(A.ctx)tp(A.paG.gain,0,.3)}
+function sGong(){[[659,0],[523,.55]].forEach(([f,w])=>{tone(f,1.6,.13,'sine',w);tone(f*2.76,.5,.03,'sine',w);tone(f*5.4,.25,.012,'sine',w)})}
 const tp=(p,v,tc=.06)=>p.setTargetAtTime(v,A.ctx.currentTime,tc);
 function burst({dur,f,q=1,type='bandpass',vol,at=.002,when=0}){if(!A.ctx)return;const C=A.ctx,t=C.currentTime+when,s=C.createBufferSource();s.buffer=A.white;
   const fl=C.createBiquadFilter();fl.type=type;fl.frequency.value=f;fl.Q.value=q;const g=C.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+at);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
@@ -320,8 +356,14 @@ function hornOn(){if(!A.ctx||horn)return;const C=A.ctx,g=C.createGain();g.gain.v
 function hornOff(){if(!horn)return;const h=horn;horn=null;h.g.gain.setTargetAtTime(0,A.ctx.currentTime,.05);setTimeout(()=>{h.o1.stop();h.o2.stop()},300)}
 function speak(t){
   toast('Bemondás: '+t,'ann');
-  if(!cfg.voice||!A.on)return;
-  try{const ss=window.speechSynthesis;if(!ss)return;const u=new SpeechSynthesisUtterance(t);u.lang='hu-HU';const hv=ss.getVoices().find(v=>/^hu/i.test(v.lang));if(hv)u.voice=hv;u.rate=.95;u.volume=.9;ss.cancel();ss.speak(u)}catch(e){}
+  if(cfg.voice==='off'||cfg.vol===0)return;
+  const retro=cfg.voice==='retro';
+  const go=()=>{try{const ss=window.speechSynthesis;if(!ss)return;const u=new SpeechSynthesisUtterance(t);u.lang='hu-HU';
+    const vs=ss.getVoices().filter(v=>/^hu/i.test(v.lang));const v=vs.find(v=>/szabolcs|male|férfi|tamás|gábor|péter/i.test(v.name)&&!/female/i.test(v.name))||vs[0];if(v)u.voice=v;
+    if(retro){u.pitch=.5;u.rate=.84}else{u.pitch=1;u.rate=.95}
+    u.volume=cfg.vvol/100;u.onend=u.onerror=paStop;ss.cancel();ss.speak(u);
+    if(retro){paStart();setTimeout(paStop,1800+t.length*95)}}catch(e){}};
+  if(retro&&A.ctx){sGong();setTimeout(go,1150)}else go();
 }
 function audioUpdate(ebOn){
   if(!A.ctx)return;
@@ -343,7 +385,7 @@ function audioUpdate(ebOn){
 function stationAt(x){for(let i=0;i<R.n;i++)if(x>R.P[i]-128&&x<R.P[i]+14)return i;return-1}
 function setLever(i){
   i=clamp(i,0,LV.length-1);if(i===S.lever)return;
-  if(i===0&&!S.eb&&S.v>1){S.eb=true;S.score-=40;toast('Vészfékezés! −40 pont','bad');sPssh(.2)}
+  if(i===0&&!S.eb&&S.v>1){S.eb=true;S.score-=40;toast('Vészfékezés! −40 pont','bad');sPssh(.2);vib(250)}
   if(S.lever<N0&&i>=N0&&S.v<.1)sPssh(.08);
   S.lever=i;sLever();updLever();
 }
@@ -368,7 +410,7 @@ function step(dt){
   // ARS
   const lim=S.dir>0?limitAt(S.x):10;S.lim=lim;
   const over=kmh>lim+1.5;S.ars.over=over;
-  if(over){S.ars.t+=dt;if(!S.ars.act&&((S.ars.t>2.5&&S.aCmd>-.3)||kmh>lim+8)){S.ars.act=true;S.score-=25;toast('ARS beavatkozás – túllépted a '+lim+' km/h-t. −25','bad');sPssh(.16)}}
+  if(over){S.ars.t+=dt;if(!S.ars.act&&((S.ars.t>DIFF[cfg.diff].ars&&S.aCmd>-.3)||kmh>lim+8)){S.ars.act=true;S.score-=25;vib([80,60,80]);toast('ARS beavatkozás – túllépted a '+lim+' km/h-t. −25','bad');sPssh(.16)}}
   else S.ars.t=0;
   if(S.ars.act&&kmh<lim-4)S.ars.act=false;
 
@@ -432,9 +474,9 @@ function doorBtn(){
   if(S.v>.05)return toast('Az ajtók csak álló helyzetben nyithatók');
   const nx=S.next;
   if(nx<R.n&&!S.served[nx]){const off=S.x-R.P[nx];
-    if(Math.abs(off)<=TOL)return arrive(nx,off);
+    if(Math.abs(off)<=tol())return arrive(nx,off);
     if(Math.abs(off)<140)return toast(off<0?`Még ${(-off).toFixed(1)} m a megállási jelig`:`${off.toFixed(1)} m-rel túlfutottál – tolass vissza (Irány)`,'bad')}
-  if(S.cur>=0&&Math.abs(S.x-R.P[S.cur])<=TOL&&!S.departed[S.cur])return openDoors();
+  if(S.cur>=0&&Math.abs(S.x-R.P[S.cur])<=tol()&&!S.departed[S.cur])return openDoors();
   toast('Itt nincs peron – az ajtó nem nyitható','bad');
 }
 function arrive(i,off){
@@ -452,11 +494,21 @@ const cv=document.getElementById('cv'),ctx=cv.getContext('2d');let W=300,H=200,d
 function resize(){const el=cv.parentElement;dpr=Math.min(2,window.devicePixelRatio||1);W=el.clientWidth;H=el.clientHeight;cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)}
 new ResizeObserver(resize).observe(cv.parentElement);
 const hasFilter='filter'in ctx;
-function getPPM(){return Math.min(H*.1,(W/72)*zoom)}
+function camPPM(){const m=cam.mode,base=m==='szer'?W/(TRAIN_L+14):W/72;return clamp(base*cam.z[m],2,H*.6)}
+function camTarget(ppm){const vw=W/ppm,m=cam.mode;
+  if(m==='fulke')return S.x-vw*.62;
+  if(m==='szer')return S.x-TRAIN_L/2-vw/2;
+  if(m==='hatra')return S.x-TRAIN_L-vw*.7;
+  return S.x-(W-90)*.72/ppm}
+function setCam(m){cam.mode=m;cam.off=0;cam.sw=true;$('bCam').textContent=CAMN[m]}
+function setZoom(z){cam.z[cam.mode]=clamp(z,.35,10)}
 function rr(x,y,w,h,r){ctx.beginPath();if(ctx.roundRect)ctx.roundRect(x,y,w,h,r);else ctx.rect(x,y,w,h)}
-function render(){
+function render(dt){
   ctx.setTransform(dpr,0,0,dpr,0,0);
-  const ppm=getPPM(),railY=H*.63,camX=S.x-(W-90)*.72/ppm,X=wx=>(wx-camX)*ppm,vx0=camX-5,vx1=camX+W/ppm+5;
+  const tp0=camPPM();cam.ppm=cam.ppm?cam.ppm+(tp0-cam.ppm)*Math.min(1,dt*6):tp0;const ppm=cam.ppm;ppmNow=ppm;
+  const railY=ppm<=H*.1?H*.63:H*.5+1.3*ppm;
+  const tgt=camTarget(ppm)+cam.off;if(cam.sw){cam.d=cam.last-tgt;cam.sw=false}cam.d*=Math.exp(-dt*5);const camX=tgt+cam.d;cam.last=camX;
+  const X=wx=>(wx-camX)*ppm,vx0=camX-5,vx1=camX+W/ppm+5;
   const platTop=railY-PLAT_H*ppm,bandR=Math.max(8,Math.min(H-platTop-56,1.8*ppm));
   let g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#08090a');g.addColorStop(.35,'#171b1c');g.addColorStop(.66,'#1f2425');g.addColorStop(1,'#0d0f10');
   ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
@@ -592,7 +644,7 @@ function updHud(){
   if(S.cur>=0&&!S.departed[S.cur]){e=R.st[S.cur];lbl=S.cur===R.n-1?'Végállomás':'Állomáson';
     if(S.cur<R.n-1){const d=S.t-R.dep[S.cur];sch='Ind. '+clockStr(R.dep[S.cur]);dl=d<0?'még '+mmss(d):'késés +'+mmss(d);cls=d<0?'ok':d<20?'warn':'bad';
       dist=exchangeDone()?'utascsere kész':'utascsere…'}}
-  else if(S.next<R.n){const i=S.next;e=R.st[i];lbl='Következő';const ds=R.P[i]-S.x;dist=Math.abs(ds)<20?`${ds.toFixed(1)} m`:`${Math.round(ds)} m`;
+  else if(S.next<R.n){const i=S.next;e=R.st[i];lbl='Következő';const ds=R.P[i]-S.x;dist=cfg.diff==='sim'&&Math.abs(ds)<150?'– m':Math.abs(ds)<20?`${ds.toFixed(1)} m`:`${Math.round(ds)} m`;
     const d=S.t-R.arr[i];sch='Érk. '+clockStr(R.arr[i]);dl=d<0?'még '+mmss(d):'késés +'+mmss(d);cls=d<-10?'ok':d<10?'warn':'bad'}
   else lbl='Menet vége';
   $('stLbl').textContent=lbl;$('stName').innerHTML=e?`<i style="background:${LINES[e.l].c};color:${e.l==='M1'?'#111':'#fff'}">${e.l}</i>${e.n}`:'–';
@@ -607,32 +659,123 @@ function updHud(){
 }
 
 /* ---------- menük ---------- */
-function startGame(){try{screen.orientation&&screen.orientation.lock&&screen.orientation.lock("landscape").catch(()=>{})}catch(e){}aInit();reset();$('ov').hidden=true;paused=false;updDoorBtn();$('bPause').textContent='Szünet';
+const ov=$('ov');
+const inGame=()=>S&&S.started&&!S.ended;
+function ovShow(html){ov.hidden=false;ov.innerHTML=html;ov.scrollTop=0}
+function freeze(){paused=true;if(A.ctx)A.ctx.suspend();try{speechSynthesis.cancel()}catch(e){};hornOff()}
+function resume(){ov.hidden=true;ov.innerHTML='';paused=false;if(A.ctx)A.ctx.resume()}
+const head=(t,sub)=>`<div class="full" style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap"><h1>${t}</h1>${sub?`<span class="sub">${sub}</span>`:''}</div>`;
+function showMain(){
+  freeze();
+  ovShow(`<div class="card">
+   <div style="display:flex;flex-direction:column;gap:10px"><span class="sub">Budapest · 81-717 · 5 kocsi</span><h1>M3 <span>Metró</span> Szimulátor</h1>
+   <img src="${CAR_IMG}" alt="81-717 metrókocsi oldalnézetben"><p>Vezesd a szerelvényt az M1–M4 vonalakon. Állj meg pontosan, cseréld az utasokat, tartsd a menetrendet.</p></div>
+   <div class="menu">
+    ${inGame()?`<button class="mbtn pri" id="mCont">Folytatás<small>${R.name} · ${R.st[Math.min(R.n-1,S.next)].n}</small></button>`:''}
+    <button class="mbtn ${inGame()?'':'pri'}" id="mNew">Új menet<small>útvonal kiválasztása</small></button>
+    <button class="mbtn" id="mSet">Beállítások<small>hang, bemondó, nehézség, kamera</small></button>
+    <button class="mbtn" id="mHelp">Irányítás</button>
+    <button class="mbtn quit" id="mQuit">Kilépés</button>
+   </div></div>`);
+  if(inGame())$('mCont').onclick=resume;
+  $('mNew').onclick=()=>inGame()?showConfirm(showMain,showRoutes,'Új menet indítása','A jelenlegi menet és pontjai elvesznek.'):showRoutes();
+  $('mSet').onclick=()=>showSettings(showMain);$('mHelp').onclick=()=>showHelp(showMain);
+  $('mQuit').onclick=()=>inGame()?showConfirm(showMain,quitApp,'Kilépés','A jelenlegi menet és pontjai elvesznek.'):quitApp();
+}
+function quitApp(){
+  if(S){S.started=false}
+  try{window.close()}catch(e){}
+  setTimeout(()=>ovShow(`<div class="card">${head('Viszlát!','')}<p class="full">A menetet lezártad. Az alkalmazást a telefon alkalmazásváltójával zárhatod be teljesen.</p>
+   <button class="mbtn pri full" id="qBack">Vissza a főmenübe</button></div>`)||($('qBack').onclick=()=>{reset();showMain()}),250);
+}
+function showPause(){
+  freeze();
+  ovShow(`<div class="card">${head('Szünet',R.name)}
+   <div class="menu full">
+    <button class="mbtn pri" id="pCont">Folytatás</button>
+    <button class="mbtn" id="pRestart">Menet újrakezdése</button>
+    <button class="mbtn" id="pSet">Beállítások</button>
+    <button class="mbtn" id="pHelp">Irányítás</button>
+    <button class="mbtn quit" id="pQuit">Kilépés a főmenübe</button>
+   </div></div>`);
+  $('pCont').onclick=resume;
+  $('pRestart').onclick=()=>showConfirm(showPause,startGame,'Újrakezdés','A menet elölről indul, a pontok elvesznek.');
+  $('pSet').onclick=()=>showSettings(showPause);$('pHelp').onclick=()=>showHelp(showPause);
+  $('pQuit').onclick=()=>showConfirm(showPause,exitToMain,'Kilépés a főmenübe','A jelenlegi menet és pontjai elvesznek.');
+}
+function exitToMain(){if(S)S.started=false;reset();showMain()}
+function showConfirm(back,ok,title,txt){
+  ovShow(`<div class="card">${head(title,'')}<p class="full">${txt}</p>
+   <button class="mbtn" id="cNo">Mégse</button><button class="mbtn quit" id="cYes">${title}</button></div>`);
+  $('cNo').onclick=()=>back===resume?resume():back();$('cYes').onclick=ok;
+}
+function showHelp(back){
+  ovShow(`<div class="card">${head('Irányítás','')}
+   <div class="help"><b>1 · 2 · 3 · 4</b><span>menetfokozatok előre (gomb vagy billentyű)</span><b>0</b><span>kifutás</span><b>T1 · T2</b><span>üzemi fék</span><b>VB</b><span>vészfék – szikrázó kerekek, −40 pont</span>
+   <b>↑ / ↓</b><span>kontroller fel / le</span><b>Szóköz</b><span>ajtók nyitása / zárása</span><b>H</b><span>kürt</span><b>R</b><span>irányváltó (álló helyzetben)</span><b>Esc / P</b><span>szünet menü</span></div>
+   <div class="help"><b>C / Kamera</b><span>nézet: Menet → Fülke → Szerelvény → Hátra</span><b>+ / −, csippentés</b><span>nagyítás, kicsinyítés</span><b>húzás</b><span>a kép elmozgatása előre-hátra</span><b>dupla koppintás</b><span>vissza a vonathoz</span><b>egérgörgő</b><span>nagyítás</span></div>
+   <p class="full">Állj meg a „5”-ös megállási jelnél, nyisd ki az ajtókat, várd meg az utascserét, zárd az ajtókat, és indulj a menetrend szerinti időben. A sebességet az ARS felügyeli.</p>
+   <button class="mbtn full" id="hBack">Vissza</button></div>`);
+  $('hBack').onclick=back;
+}
+const seg=(id,opts,val)=>`<div class="seg" id="${id}">${opts.map(([v,t])=>`<button data-v="${v}" class="${v===val?'on':''}">${t}</button>`).join('')}</div>`;
+function bindSeg(id,fn){$(id).querySelectorAll('button').forEach(b=>b.onclick=()=>{$(id).querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));fn(b.dataset.v)})}
+function showSettings(back){
+  ovShow(`<div class="card">${head('Beállítások','automatikusan mentve')}
+   <div class="sets">
+    <div class="set"><label for="sVol">Hangerő</label><input type="range" id="sVol" min="0" max="100" value="${cfg.vol}"><span id="sVolV">${cfg.vol}</span></div>
+    <div class="set"><span>Bemondó</span>${seg('sVoice',[['retro','Retro férfi'],['normal','Normál'],['off','Ki']],cfg.voice)}<span></span></div>
+    <div class="set"><label for="sVv">Bemondó hangereje</label><input type="range" id="sVv" min="0" max="100" value="${cfg.vvol}"><span id="sVvV">${cfg.vvol}</span></div>
+    <div class="set"><span></span><button class="b" id="sTest" style="justify-self:start">Próbabemondás</button><span></span></div>
+    <p class="note">A retro bemondó gonggal indul, mély, lassú férfihangon szól, hangszórós zúgással. A hang a telefon magyar felolvasóhangjából készül.</p>
+   </div>
+   <div class="sets">
+    <div class="set"><span>Nehézség</span>${seg('sDiff',Object.entries(DIFF).map(([k,v])=>[k,v.n]),cfg.diff)}<span></span></div>
+    <p class="note" id="sDiffD">${DIFF[cfg.diff].d}</p>
+    <div class="set"><span>Alap kameranézet</span>${seg('sCam',CAMS.map(c=>[c,CAMN[c]]),cfg.cam)}<span></span></div>
+    <label class="chk"><input type="checkbox" id="sShort" ${cfg.short?'checked':''}> Rövidített szakaszok (×0,6) – új menettől</label>
+    <label class="chk"><input type="checkbox" id="sSpark" ${cfg.sparks?'checked':''}> Szikra- és íveffektek</label>
+    <label class="chk"><input type="checkbox" id="sVib" ${cfg.vib?'checked':''}> Rezgés (vészfék, ARS, ív)</label>
+    <button class="b" id="sFs" style="align-self:start">Teljes képernyő</button>
+   </div>
+   <button class="mbtn full" id="sBack">Vissza</button></div>`);
+  $('sVol').oninput=e=>{cfg.vol=+e.target.value;$('sVolV').textContent=cfg.vol;if(A.master)A.master.gain.value=cfg.vol/100*.9;saveCfg()};
+  $('sVv').oninput=e=>{cfg.vvol=+e.target.value;$('sVvV').textContent=cfg.vvol;saveCfg()};
+  bindSeg('sVoice',v=>{cfg.voice=v;saveCfg()});
+  bindSeg('sDiff',v=>{cfg.diff=v;$('sDiffD').textContent=DIFF[v].d;saveCfg()});
+  bindSeg('sCam',v=>{cfg.cam=v;setCam(v);saveCfg()});
+  $('sShort').onchange=e=>{cfg.short=e.target.checked;saveCfg()};
+  $('sSpark').onchange=e=>{cfg.sparks=e.target.checked;saveCfg()};
+  $('sVib').onchange=e=>{cfg.vib=e.target.checked;saveCfg();vib(60)};
+  $('sTest').onclick=()=>{aInit();A.ctx.resume();speak('Kérjük, vigyázzanak, az ajtók záródnak! A következő állomás: Deák Ferenc tér.')};
+  $('sFs').onclick=goFull;
+  $('sBack').onclick=back;
+}
+function goFull(){const el=document.documentElement;const p=el.requestFullscreen?el.requestFullscreen():Promise.reject();
+  p.then(()=>screen.orientation&&screen.orientation.lock?screen.orientation.lock('landscape').catch(()=>{}):0).catch(()=>toast('A teljes képernyő itt nem érhető el'))}
+function showRoutes(){
+  freeze();
+  ovShow(`<div class="card">${head('Új menet','útvonal')}
+   <div class="routes full" id="rts">${ROUTES.map((r,i)=>`<button data-i="${i}" class="${i===cfg.route?'sel':''}"><b>${r.n}</b><span>${r.d} · ${routeLen(r)} állomás</span></button>`).join('')}</div>
+   <p class="full note">Nehézség: ${DIFF[cfg.diff].n} · Szakaszok: ${cfg.short?'rövidített':'valós hossz'} · Bemondó: ${{retro:'retro férfi',normal:'normál',off:'ki'}[cfg.voice]} — a Beállításokban módosítható.</p>
+   <button class="mbtn" id="rBack">Vissza</button><button class="mbtn pri" id="go">Indulás</button></div>`);
+  ov.querySelectorAll('#rts button').forEach(b=>b.onclick=()=>{cfg.route=+b.dataset.i;saveCfg();ov.querySelectorAll('#rts button').forEach(x=>x.classList.toggle('sel',x===b))});
+  $('rBack').onclick=showMain;$('go').onclick=startGame;
+}
+function startGame(){
+  try{screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape').catch(()=>{})}catch(e){}
+  aInit();reset();S.started=true;setCam(cfg.cam);cam.sw=false;cam.d=0;resume();updDoorBtn();
   try{speechSynthesis.getVoices()}catch(e){}
-  setTimeout(()=>speak(`${R.st[0].n}. Az ajtók zárása után a következő állomás: ${R.st[1].n}.`),400)}
-function showMenu(){
-  paused=true;if(A.ctx)A.ctx.suspend();const ov=$('ov');ov.hidden=false;
-  ov.innerHTML=`<div class="card">
-  <div style="display:flex;flex-direction:column;gap:10px"><h1>M3 <span>Metró</span> Szimulátor</h1>
-  <img src="${CAR_IMG}" alt="81-717 metrókocsi oldalnézetben">
-  <p>Vezesd az öt kocsis 81-717-es szerelvényt a budapesti metróvonalakon. Állj meg pontosan a megállási jelnél, cseréld az utasokat, tartsd a menetrendet.</p>
-  <div class="opts"><label><input type="checkbox" id="oShort" ${cfg.short?'checked':''}> Rövidített szakaszok (×0,6)</label><label><input type="checkbox" id="oVoice" ${cfg.voice?'checked':''}> Hangosbemondó</label></div></div>
-  <div style="display:flex;flex-direction:column;gap:10px">
-  <div class="routes" id="rts">${ROUTES.map((r,i)=>`<button data-i="${i}" class="${i===cfg.route?'sel':''}"><b>${r.n}</b><span>${r.d} · ${routeLen(r)} állomás</span></button>`).join('')}</div>
-  <div class="help"><b>1 · 2 · 3 · 4</b><span>menetfokozatok előre (gomb vagy billentyű)</span><b>0</b><span>kifutás</span><b>T1 · T2</b><span>üzemi fék</span><b>VB</b><span>vészfék – szikrázó kerekek, −40 pont</span>
-  <b>↑ / ↓</b><span>kontroller fel / le</span><b>Szóköz</b><span>ajtók nyitása / zárása</span><b>H · R · P</b><span>kürt · irányváltó · szünet</span></div>
-  <button class="go" id="go">Indulás</button></div></div>`;
-  ov.querySelectorAll('#rts button').forEach(b=>b.onclick=()=>{cfg.route=+b.dataset.i;ov.querySelectorAll('#rts button').forEach(x=>x.classList.toggle('sel',x===b))});
-  $('go').onclick=()=>{cfg.short=$('oShort').checked;cfg.voice=$('oVoice').checked;startGame()};
+  setTimeout(()=>speak(`${R.st[0].n}. Az ajtók zárása után a következő állomás: ${R.st[1].n}.`),400);
 }
 function showEnd(){
-  paused=true;if(A.ctx)A.ctx.suspend();
+  freeze();
   const max=(R.n-1)*160,pct=clamp(S.score/max,0,1),stars=pct>.85?'★★★':pct>.6?'★★☆':pct>.3?'★☆☆':'☆☆☆';
   const rows=S.log.map(l=>`<tr><td>${R.st[l.i].n}</td><td>${l.miss?'kimaradt':(l.late>=0?'+':'−')+mmss(l.late)}</td><td>${l.miss?'–':Math.abs(l.off).toFixed(1)+' m'}</td><td>${l.dep===undefined?'–':(l.dep>=0?'+':'−')+mmss(l.dep)}</td><td>${l.pts}</td></tr>`).join('');
-  const ov=$('ov');ov.hidden=false;ov.innerHTML=`<div class="card"><div class="full" style="display:flex;gap:18px;align-items:baseline;flex-wrap:wrap"><h1>${R.name} – menet vége</h1><span class="big">${S.score}</span><span style="font-size:26px;color:var(--amber)">${stars}</span><span class="lbl">max. ${max} pont</span></div>
+  ovShow(`<div class="card"><div class="full" style="display:flex;gap:18px;align-items:baseline;flex-wrap:wrap"><h1>${R.name} – menet vége</h1><span class="big">${S.score}</span><span style="font-size:26px;color:var(--amber)">${stars}</span><span class="lbl">max. ${max} pont · ${DIFF[cfg.diff].n}</span></div>
   <div class="tblw full"><table><thead><tr><th>Állomás</th><th>Érkezés</th><th>Megállás</th><th>Indulás</th><th>Pont</th></tr></thead><tbody>${rows}</tbody></table></div>
-  <button class="go" id="again">Újra ezt a vonalat</button><button class="go" id="menu" style="background:#202825;color:var(--ink)">Útvonalválasztás</button></div>`;
-  $('again').onclick=startGame;$('menu').onclick=showMenu;
+  <button class="mbtn pri" id="again">Újra ezt a vonalat</button><button class="mbtn" id="eRoutes">Másik útvonal</button><button class="mbtn full" id="eMain">Főmenü</button></div>`);
+  $('again').onclick=startGame;$('eRoutes').onclick=showRoutes;$('eMain').onclick=()=>{reset();showMain()};
 }
 
 /* ---------- vezérlés ---------- */
@@ -640,28 +783,43 @@ $('bDoor').onclick=doorBtn;
 const hb=$('bHorn');hb.addEventListener('pointerdown',e=>{e.preventDefault();if(!paused){aInit();hornOn()}});['pointerup','pointerleave','pointercancel'].forEach(t=>hb.addEventListener(t,hornOff));
 function toggleDir(){if(paused)return;if(S.v>.05)return toast('Irányváltás csak álló helyzetben');if(S.lever>N0)return toast('Előbb állítsd a kontrollert 0 vagy fék állásba');S.dir*=-1;sLever();toast(S.dir>0?'Irány: előre':'Irány: hátra (max. 7 km/h)')}
 $('bDir').onclick=toggleDir;
-$('bZin').onclick=()=>zoom=clamp(zoom*1.25,.4,3);$('bZout').onclick=()=>zoom=clamp(zoom/1.25,.4,3);
-$('bSnd').onclick=()=>{A.on=!A.on;$('bSnd').textContent=A.on?'Hang':'Néma';if(A.master)A.master.gain.value=A.on?.85:0;if(!A.on)try{speechSynthesis.cancel()}catch(e){}};
-function togglePause(){if(!S||S.ended||!$('ov').hidden)return;paused=!paused;$('bPause').textContent=paused?'Tovább':'Szünet';if(A.ctx)paused?A.ctx.suspend():A.ctx.resume();if(paused)toast('Szünet')}
-$('bPause').onclick=togglePause;
-$('bFs').onclick=()=>{const el=document.documentElement;const p=el.requestFullscreen?el.requestFullscreen():Promise.reject();
-  p.then(()=>screen.orientation&&screen.orientation.lock?screen.orientation.lock('landscape').catch(()=>{}):0).catch(()=>toast('A teljes képernyő itt nem érhető el'))};
-addEventListener('keydown',e=>{if(!S||!$('ov').hidden)return;const k=e.key;
+function nextCam(){const m=CAMS[(CAMS.indexOf(cam.mode)+1)%CAMS.length];setCam(m);toast('Kamera: '+CAMN[m])}
+$('bCam').onclick=nextCam;
+$('bZin').onclick=()=>setZoom(cam.z[cam.mode]*1.25);$('bZout').onclick=()=>setZoom(cam.z[cam.mode]/1.25);
+$('bMenu').onclick=()=>{if(inGame()&&!paused)showPause()};
+$('bQuit').onclick=()=>{if(!inGame())return;freeze();showConfirm(resume,exitToMain,'Kilépés','Kilépsz a menetből? A jelenlegi menet és pontjai elvesznek.')};
+// csippentés, húzás, dupla koppintás, görgő
+const ptrs=new Map();let pinch0=null,drag0=null,lastTap=0;
+const rotated=()=>matchMedia('(orientation:portrait) and (pointer:coarse)').matches;
+const appX=e=>rotated()?e.clientY:e.clientX;
+cv.addEventListener('pointerdown',e=>{try{cv.setPointerCapture(e.pointerId)}catch(_){}ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(ptrs.size===2){const[a,b]=[...ptrs.values()];pinch0={d:Math.max(10,Math.hypot(a.x-b.x,a.y-b.y)),z:cam.z[cam.mode]};drag0=null}
+  else if(ptrs.size===1){drag0={x:appX(e),off:cam.off,moved:false};const now=performance.now();if(now-lastTap<300){cam.sw=true;cam.off=0}lastTap=now}});
+cv.addEventListener('pointermove',e=>{if(!ptrs.has(e.pointerId))return;ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(ptrs.size===2&&pinch0){const[a,b]=[...ptrs.values()];setZoom(pinch0.z*Math.hypot(a.x-b.x,a.y-b.y)/pinch0.d)}
+  else if(drag0){const dx=appX(e)-drag0.x;if(Math.abs(dx)>6)drag0.moved=true;if(drag0.moved)cam.off=clamp(drag0.off-dx/ppmNow,-600,600)}});
+const pUp=e=>{ptrs.delete(e.pointerId);if(ptrs.size<2)pinch0=null;if(ptrs.size===0)drag0=null};
+['pointerup','pointercancel','pointerleave'].forEach(t=>cv.addEventListener(t,pUp));
+cv.addEventListener('wheel',e=>{e.preventDefault();setZoom(cam.z[cam.mode]*(e.deltaY<0?1.12:1/1.12))},{passive:false});
+addEventListener('keydown',e=>{if(!S)return;const k=e.key;
+  if(k==='Escape'||k==='p'||k==='P'){if(inGame()){if(ov.hidden)showPause();else if($('pCont'))resume()}return}
+  if(!ov.hidden)return;
   if(k==='ArrowUp'||k==='w'||k==='W'){e.preventDefault();if(!paused){aInit();setLever(S.lever+1)}}
   else if(k==='ArrowDown'||k==='s'||k==='S'){e.preventDefault();if(!paused){aInit();setLever(S.lever-1)}}
   else if(/^[0-4]$/.test(k)){if(!paused){aInit();setLever(N0+ +k)}}
   else if(k===' '){e.preventDefault();if(!e.repeat)doorBtn()}
   else if(k==='h'||k==='H'){if(!e.repeat&&!paused){aInit();hornOn()}}
   else if(k==='r'||k==='R')toggleDir();
-  else if(k==='+'||k==='=')zoom=clamp(zoom*1.25,.4,3);else if(k==='-')zoom=clamp(zoom/1.25,.4,3);
-  else if(k==='p'||k==='P'||k==='Escape')togglePause()});
+  else if(k==='c'||k==='C')nextCam();
+  else if(k==='+'||k==='=')setZoom(cam.z[cam.mode]*1.25);else if(k==='-')setZoom(cam.z[cam.mode]/1.25)});
 addEventListener('keyup',e=>{if(e.key==='h'||e.key==='H')hornOff()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&inGame()&&!paused)showPause()});
 
 let last=performance.now();
 function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
-  if(S){if(!paused){const eb=step(dt);audioUpdate(eb)}render();hudT-=dt;if(hudT<=0){updHud();hudT=.08}}
+  if(S){if(!paused){const eb=step(dt);audioUpdate(eb)}render(dt);hudT-=dt;if(hudT<=0){updHud();hudT=.08}}
   requestAnimationFrame(frame)}
-reset();resize();showMenu();requestAnimationFrame(frame);
+reset();resize();setCam(cam.mode);showMain();requestAnimationFrame(frame);
 </script>
 
 <script>if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));</script>
