@@ -207,6 +207,119 @@ const DEF={vol:85,vvol:90,voice:'retro',short:true,sparks:true,vib:true,diff:'no
 const EMERG={off:['Ki',0],rare:['Ritkán',.05],often:['Gyakran',.35]};
 let cfg=Object.assign({},DEF);try{Object.assign(cfg,JSON.parse(localStorage.getItem('m3sim.cfg')||'{}'))}catch(e){}
 function saveCfg(){try{localStorage.setItem('m3sim.cfg',JSON.stringify(cfg))}catch(e){}}
+
+/* ---------- Firebase + nick + ranglista + tutorial ---------- */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCGhcrPWDdG6s8nH33XfxF4zb1cIByhHCk",
+  authDomain: "m3-metro-szim.firebaseapp.com",
+  databaseURL: "https://m3-metro-szim-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "m3-metro-szim",
+  storageBucket: "m3-metro-szim.firebasestorage.app",
+  messagingSenderId: "936798511648",
+  appId: "1:936798511648:web:459e1e995435e463cc1245",
+  measurementId: "G-30KS2SPD79"
+};
+let fbApp=null, fbDb=null, fbReady=false;
+function initFirebase(){
+  if(fbReady||typeof firebase==='undefined')return Promise.resolve(fbReady);
+  try{
+    if(!firebase.apps.length)fbApp=firebase.initializeApp(FIREBASE_CONFIG);
+    else fbApp=firebase.app();
+    fbDb=firebase.database(); fbReady=true;
+  }catch(e){console.warn('Firebase init',e);fbReady=false}
+  return Promise.resolve(fbReady);
+}
+function getNick(){try{return localStorage.getItem('m3sim.nick')||''}catch(e){return ''}}
+function setNick(n){n=(n||'').trim().slice(0,16);try{localStorage.setItem('m3sim.nick',n)}catch(e){}return n}
+function loadBoardLocal(){try{return JSON.parse(localStorage.getItem('m3sim.board')||'[]')}catch(e){return []}}
+function saveBoardLocal(b){try{localStorage.setItem('m3sim.board',JSON.stringify(b.slice(0,40)))}catch(e){}}
+async function addScore(score,routeName){
+  const nick=getNick()||'Névtelen';
+  const entry={nick,score:Math.round(score),route:routeName||'',t:Date.now()};
+  const local=loadBoardLocal(); local.push(entry); local.sort((a,c)=>c.score-a.score); saveBoardLocal(local);
+  try{await initFirebase(); if(fbReady&&fbDb) await fbDb.ref('scores').push(entry)}catch(e){console.warn('score upload',e)}
+  return local;
+}
+async function fetchGlobalBoard(limit=30){
+  try{
+    await initFirebase();
+    if(!fbReady||!fbDb) return loadBoardLocal();
+    const snap=await fbDb.ref('scores').orderByChild('score').limitToLast(limit).once('value');
+    const list=[]; snap.forEach(c=>list.push(c.val())); list.reverse();
+    if(list.length) saveBoardLocal(list);
+    return list;
+  }catch(e){console.warn('board fetch',e); return loadBoardLocal()}
+}
+function showNickPrompt(onDone){
+  freeze();
+  const prev=getNick();
+  ovShow(`<div class="card">${head('Válassz nevet','ranglistához szükséges')}
+    <p class="full">Adj meg egy nevet (max. 16 karakter). Ezzel fogsz szerepelni a globális ranglistán.</p>
+    <input id="nickIn" maxlength="16" placeholder="pl. MetróSanyi" value="${prev.replace(/"/g,'&quot;')}"
+      style="font-family:var(--display);font-size:20px;padding:12px 14px;border-radius:6px;border:1px solid #2f3a36;background:#0f1312;color:var(--ink);width:100%;box-sizing:border-box">
+    <p class="note full" id="nickErr" style="color:var(--red)"></p>
+    <button class="mbtn pri full" id="nickOk">Mentés és tovább</button></div>`);
+  const inp=$('nickIn'); setTimeout(()=>inp.focus(),200);
+  $('nickOk').onclick=()=>{const n=inp.value.trim();
+    if(n.length<2){$('nickErr').textContent='Legalább 2 karakter kell.';return}
+    if(!/^[\wáéíóöőúüűÁÉÍÓÖŐÚÜŰ .\-]+$/i.test(n)){$('nickErr').textContent='Csak betű, szám, szóköz és . - engedélyezett.';return}
+    setNick(n); onDone(n)};
+  inp.onkeydown=e=>{if(e.key==='Enter')$('nickOk').click()};
+}
+function showBoard(back){
+  freeze();
+  ovShow(`<div class="card">${head('Ranglista','globális')}<p class="note full">Betöltés…</p><button class="mbtn full" id="bBack">Vissza</button></div>`);
+  $('bBack').onclick=back;
+  fetchGlobalBoard(40).then(b=>{
+    const me=getNick();
+    const rows=b.length?b.map((e,i)=>`<tr><td style="text-align:left">${i+1}.</td>
+      <td style="text-align:left;font-family:var(--display);font-size:15px">${e.nick===me?'<b style="color:var(--amber)">'+e.nick+' (te)</b>':e.nick}</td>
+      <td>${e.score}</td><td style="font-size:11px;color:var(--dim)">${e.route||'–'}</td></tr>`).join('')
+      :'<tr><td colspan="4" style="text-align:center;color:var(--dim)">Még nincs eredmény</td></tr>';
+    ovShow(`<div class="card">${head('Ranglista','globális')}
+      <p class="note full">Jelenlegi neved: <b>${me||'nincs beállítva'}</b>
+        · <button class="b" id="bChNick" style="display:inline;padding:2px 8px;height:auto;font-size:12px">Név csere</button>
+        · <button class="b" id="bRefresh" style="display:inline;padding:2px 8px;height:auto;font-size:12px">Frissítés</button></p>
+      <div class="tblw full"><table><thead><tr><th style="text-align:left">#</th><th style="text-align:left">Név</th><th>Pont</th><th>Vonal</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+      <button class="mbtn full" id="bBack">Vissza</button></div>`);
+    $('bBack').onclick=back;
+    $('bChNick').onclick=()=>showNickPrompt(()=>showBoard(back));
+    $('bRefresh').onclick=()=>showBoard(back);
+  });
+}
+/* tutorial */
+let TUT=null;
+function clearTutHighlight(){document.querySelectorAll('.tut-glow').forEach(el=>el.classList.remove('tut-glow'));const tip=$('tutTip');if(tip)tip.remove()}
+function tutHighlight(sel,text){clearTutHighlight();const el=typeof sel==='string'?$(sel):sel;if(el)el.classList.add('tut-glow');
+  const tip=document.createElement('div');tip.id='tutTip';tip.innerHTML=text;$('app').appendChild(tip)}
+function tutNext(){if(!TUT)return;TUT.step++;runTutStep()}
+function runTutStep(){
+  if(!TUT)return;const s=TUT.step;
+  if(s===0){tutHighlight('lever','Nyomd meg a <b>1</b> vagy <b>2</b> gombot a kontrolleren<br>(jobb oldali oszlop) – indulás!');return}
+  if(s===1){tutHighlight('bDoor','Amikor megálltál az állomáson a <b>„5”</b> jelnél,<br>nyomd meg az <b>Ajtók nyitása</b> gombot');return}
+  if(s===2){tutHighlight('bDoor','Várd meg az utascserét, majd nyomd meg újra:<br><b>Ajtók zárása</b>');return}
+  if(s===3){tutHighlight('lever','Indulj tovább: állítsd a kontrollert <b>1–2</b> fokozatra');return}
+  clearTutHighlight();toast('Tutorial kész! Most már szabadon vezethetsz.','good');cfg.tutorialDone=true;saveCfg();TUT=null;
+}
+function startTutorialMode(){TUT={step:0};runTutStep()}
+function showTutPrompt(onYes,onNo){
+  freeze();
+  ovShow(`<div class="card">${head('Irányítás tutorial','első indítás')}
+    <p class="full">Szeretnél egy gyors, interaktív tutorialt, ami világító gombokkal megmutatja a legfontosabb irányításokat?</p>
+    <p class="note full">Csak most jelenik meg. Később az Irányítás menüből újraindíthatod.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="mbtn pri" id="tutYes" style="flex:1">Igen, kérem</button>
+      <button class="mbtn" id="tutNo" style="flex:1">Nem, egyből játék</button>
+    </div></div>`);
+  $('tutYes').onclick=()=>{cfg.tutorialDone=true;saveCfg();onYes()};
+  $('tutNo').onclick=()=>{cfg.tutorialDone=true;saveCfg();onNo()};
+}
+function showTutorial(back){
+  if(inGame()&&!paused){startTutorialMode();if(back)back()}
+  else showTutPrompt(()=>{if(back)back();startTutorialMode();resume()},()=>{if(back)back();else resume()});
+}
+
 const DIFF={easy:{tol:6,ars:4,n:'Könnyű',d:'±6 m ajtónyitási tűrés, engedékeny ARS.'},normal:{tol:4,ars:2.5,n:'Normál',d:'±4 m tűrés, 2,5 s ARS-türelmi idő.'},sim:{tol:2,ars:1.5,n:'Szimulátor',d:'±2 m tűrés, szigorú ARS, 150 m-en belül nincs távolságkijelzés.'}};
 const tol=()=>DIFF[cfg.diff].tol;
 const CAMS=['menet','fulke','szer','hatra'],CAMN={menet:'Menet',fulke:'Fülke',szer:'Szerelvény',hatra:'Hátra'};
@@ -423,11 +536,7 @@ function setLever(i){
   if(i===0&&!S.eb&&S.v>1){S.eb=true;if(S.inc)toast('Vészfékezés – indokolt, nincs pontlevonás','good');else{S.score-=40;toast('Vészfékezés! −40 pont','bad')}sPssh(.2);vib(250)}
   if(S.lever<N0&&i>=N0&&S.v<.1)sPssh(.08);
   S.lever=i;sLever();updLever();
-  // tutorial advance
-  if(TUT){
-    if(TUT.step===0 && i>N0){ tutNext(); }           // first accelerate
-    if(TUT.step===3 && i>N0){ tutNext(); }           // accelerate after doors
-  }
+  if(TUT){if(TUT.step===0&&i>N0)tutNext();if(TUT.step===3&&i>N0)tutNext()}
 }
 function step(dt){
   S.t+=dt;
@@ -519,15 +628,14 @@ function doorBtn(){
   if(S.doorState==='open'||S.doorState==='opening'){
     if(S.cur===R.n-1)return toast('Végállomás – várd meg, amíg mindenki leszáll');
     S.doorState='warn';S.doorT=2;sBell(2);setTimeout(()=>speak('Kérjük, vigyázzanak, az ajtók záródnak!',true),150);updDoorBtn();
-    if(TUT && TUT.step===2) tutNext();   // closed doors in tutorial
-    return}
+    if(TUT&&TUT.step===2)tutNext(); return}
   if(S.doorState!=='closed')return;
   if(S.v>.05)return toast('Az ajtók csak álló helyzetben nyithatók');
   const nx=S.next;
   if(nx<R.n&&!S.served[nx]){const off=S.x-R.P[nx];
-    if(Math.abs(off)<=tol()){ arrive(nx,off); if(TUT && TUT.step===1) tutNext(); return; }
+    if(Math.abs(off)<=tol()){arrive(nx,off);if(TUT&&TUT.step===1)tutNext();return}
     if(Math.abs(off)<140)return toast(off<0?`Még ${(-off).toFixed(1)} m a megállási jelig`:`${off.toFixed(1)} m-rel túlfutottál – tolass vissza (Irány)`,'bad')}
-  if(S.cur>=0&&Math.abs(S.x-R.P[S.cur])<=tol()&&!S.departed[S.cur]){ openDoors(); if(TUT && TUT.step===1) tutNext(); return; }
+  if(S.cur>=0&&Math.abs(S.x-R.P[S.cur])<=tol()&&!S.departed[S.cur]){openDoors();if(TUT&&TUT.step===1)tutNext();return}
   toast('Itt nincs peron – az ajtó nem nyitható','bad');
 }
 function arrive(i,off){
@@ -1065,13 +1173,14 @@ function showMain(){
     <button class="mbtn ${inGame()?'':'pri'}" id="mNew">Új menet<small>útvonal kiválasztása</small></button>
     <button class="mbtn" id="mSet">Beállítások<small>hang, bemondó, nehézség, kamera</small></button>
     <button class="mbtn" id="mHelp">Irányítás</button>
+    <button class="mbtn" id="mBoard">Ranglista<small>legjobb eredmények</small></button>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px"><button class="mbtn" id="mShare">Megosztás<small>QR-kód és link</small></button><button class="mbtn" id="mUpd">Frissítés<small>v${APP_VER}</small></button></div>
     <button class="mbtn quit" id="mQuit">Kilépés</button>
    </div></div>`);
   offlineStatus();
   if(inGame())$('mCont').onclick=resume;
   $('mNew').onclick=()=>inGame()?showConfirm(showMain,showRoutes,'Új menet indítása','A jelenlegi menet és pontjai elvesznek.'):showRoutes();
-  $('mSet').onclick=()=>showSettings(showMain);$('mShare').onclick=()=>showShare(showMain);$('mUpd').onclick=()=>showUpdate(showMain);$('mHelp').onclick=()=>showHelp(showMain);
+  $('mSet').onclick=()=>showSettings(showMain);$('mShare').onclick=()=>showShare(showMain);$('mUpd').onclick=()=>showUpdate(showMain);$('mHelp').onclick=()=>showHelp(showMain);$('mBoard').onclick=()=>showBoard(showMain);
   $('mQuit').onclick=()=>inGame()?showConfirm(showMain,quitApp,'Kilépés','A jelenlegi menet és pontjai elvesznek.'):quitApp();
 }
 function quitApp(){
@@ -1087,7 +1196,6 @@ function showShare(back){
     <p>Olvastasd be a QR-kódot a másik telefon kamerájával, vagy küldd el a linket.</p>
     <div id="shLink" style="font-family:var(--mono);font-size:15px;padding:10px;border:1px solid #2f3a36;border-radius:6px;background:#0f1312;user-select:all;-webkit-user-select:all;word-break:break-all">${SHARE_URL}</div>
     <div style="display:flex;gap:7px;flex-wrap:wrap"><button class="mbtn pri" id="shCopy" style="flex:1">Link másolása</button>${navigator.share?'<button class="mbtn" id="shSys" style="flex:1">Küldés…</button>':''}</div>
-    
     <div style="margin-top:6px;padding:12px;border:1px solid #2f3a36;border-radius:6px;background:#141a18">
       <p style="margin:0 0 8px;font-weight:600;font-size:15px">Hogyan telepítsd alkalmazásként?</p>
       <p style="margin:0 0 6px;font-size:13px;line-height:1.45"><b>Android (Chrome):</b><br>
@@ -1096,14 +1204,11 @@ function showShare(back){
       Nyisd meg a linket Safari-ban → alul a <b>Megosztás</b> gomb → <b>„Hozzáadás a Főképernyőhöz”</b>.</p>
       <p class="note" style="margin:8px 0 0">Telepítés után offline is működik, és teljes képernyős appként indul.</p>
     </div>
-
     <p class="note" id="shMsg"></p>
    </div>
    <button class="mbtn full" id="shBack">Vissza</button></div>`);
-  
   try{const M=QR.make(SHARE_URL),c=$('qrC'),x=c.getContext('2d'),n=M.length,q=4,s=Math.floor(c.width/(n+2*q)),o=Math.floor((c.width-s*n)/2);
     x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.fillStyle='#0c0f0e';M.forEach((r,y)=>r.forEach((b,xx)=>{if(b)x.fillRect(o+xx*s,o+y*s,s,s)}))}catch(e){}
-  
   const sel=()=>{try{const r=document.createRange();r.selectNodeContents($('shLink'));const s=getSelection();s.removeAllRanges();s.addRange(r)}catch(e){}};
   $('shCopy').onclick=()=>{const ok=()=>{$('shMsg').textContent='Link a vágólapon – illeszd be üzenetbe.';toast('Link másolva','good')};
     try{navigator.clipboard.writeText(SHARE_URL).then(ok,()=>{sel();$('shMsg').textContent='Kijelöltem a linket – másold ki hosszan nyomva.'})}catch(e){sel();$('shMsg').textContent='Kijelöltem a linket – másold ki hosszan nyomva.'}};
@@ -1155,92 +1260,7 @@ function showConfirm(back,ok,title,txt){
    <button class="mbtn" id="cNo">Mégse</button><button class="mbtn quit" id="cYes">${title}</button></div>`);
   $('cNo').onclick=()=>back===resume?resume():back();$('cYes').onclick=ok;
 }
-
-
-/* ---------- interaktív tutorial ---------- */
-let TUT = null; // {step, highlight}
-function clearTutHighlight(){
-  document.querySelectorAll('.tut-glow').forEach(el=>el.classList.remove('tut-glow'));
-  const tip = $('tutTip'); if(tip) tip.remove();
-}
-function tutHighlight(sel, text){
-  clearTutHighlight();
-  const el = typeof sel === 'string' ? $(sel) : sel;
-  if(el) el.classList.add('tut-glow');
-  const tip = document.createElement('div');
-  tip.id = 'tutTip';
-  tip.innerHTML = text;
-  $('app').appendChild(tip);
-}
-function tutNext(){
-  if(!TUT) return;
-  TUT.step++;
-  runTutStep();
-}
-function runTutStep(){
-  if(!TUT) return;
-  const s = TUT.step;
-  // 0: accelerate
-  if(s===0){
-    tutHighlight('lever', 'Nyomd meg a <b>1</b> vagy <b>2</b> gombot a kontrolleren<br>(jobb oldali oszlop) – indulás!');
-    return;
-  }
-  // 1: wait until moving a bit, then tell to brake near station is complex – simplify
-  if(s===1){
-    tutHighlight('bDoor', 'Amikor megálltál az állomáson a <b>„5”</b> jelnél,<br>nyomd meg az <b>Ajtók nyitása</b> gombot');
-    return;
-  }
-  if(s===2){
-    tutHighlight('bDoor', 'Várd meg az utascserét, majd nyomd meg újra:<br><b>Ajtók zárása</b>');
-    return;
-  }
-  if(s===3){
-    tutHighlight('lever', 'Indulj tovább: állítsd a kontrollert <b>1–2</b> fokozatra');
-    return;
-  }
-  if(s===4){
-    clearTutHighlight();
-    toast('Tutorial kész! Most már szabadon vezethetsz.','good');
-    cfg.tutorialDone = true;
-    saveCfg();
-    TUT = null;
-    return;
-  }
-}
-function startTutorialMode(){
-  TUT = {step:0};
-  runTutStep();
-}
-function showTutPrompt(onYes, onNo){
-  freeze();
-  ovShow(`<div class="card">
-    ${head('Irányítás tutorial','első indítás')}
-    <p class="full">Szeretnél egy gyors, interaktív tutorialt, ami világító gombokkal megmutatja a legfontosabb irányításokat?</p>
-    <p class="note full">Csak most jelenik meg. Később az Irányítás menüből bármikor újraindíthatod.</p>
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <button class="mbtn pri" id="tutYes" style="flex:1">Igen, kérem</button>
-      <button class="mbtn" id="tutNo" style="flex:1">Nem, egyből játék</button>
-    </div>
-  </div>`);
-  $('tutYes').onclick = ()=>{ cfg.tutorialDone=true; saveCfg(); onYes(); };
-  $('tutNo').onclick  = ()=>{ cfg.tutorialDone=true; saveCfg(); onNo(); };
-}
-
-function showTutorial(back){
-  // replay from help – restart guided mode if in game, else just show prompt
-  if(inGame() && !paused){
-    startTutorialMode();
-    if(back) back();
-  } else {
-    showTutPrompt(
-      ()=>{ if(back) back(); startTutorialMode(); resume(); },
-      ()=>{ if(back) back(); else resume(); }
-    );
-  }
-}
-
 function showHelp(back){
-
   ovShow(`<div class="card">${head('Irányítás','')}
    <div class="help"><b>1 · 2 · 3 · 4</b><span>menetfokozatok előre (gomb vagy billentyű)</span><b>0</b><span>kifutás</span><b>T1 · T2</b><span>üzemi fék</span><b>VB</b><span>vészfék – szikrázó kerekek, −40 pont</span>
    <b>↑ / ↓</b><span>kontroller fel / le</span><b>Szóköz</b><span>ajtók nyitása / zárása</span><b>H</b><span>kürt</span><b>R / nyíl ikon</b><span>irányváltó álló helyzetben; a nyíl mutatja a menetirányt (zöld: előre, sárga: hátra)</span><b>112</b><span>segélyhívás vészhelyzetben (személy a vágányon)</span><b>Esc / P</b><span>szünet menü</span></div>
@@ -1318,24 +1338,20 @@ function showRoutes(){
   $('rBack').onclick=showMain;$('go').onclick=startGame;
 }
 function startGame(){
-  try{screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape').catch(()=>{})}catch(e){}
-  aInit();reset();S.started=true;setCam(cfg.cam);cam.sw=false;cam.d=0;updDoorBtn();
-  try{speechSynthesis.getVoices()}catch(e){}
-  const afterStart = ()=>{
-    resume();
-    setTimeout(()=>speak(`${R.st[0].n}. Az ajtók zárása után a következő állomás: ${R.st[1].n}.`),400);
+  const go=()=>{
+    try{screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape').catch(()=>{})}catch(e){}
+    aInit();reset();S.started=true;setCam(cfg.cam);cam.sw=false;cam.d=0;updDoorBtn();
+    try{speechSynthesis.getVoices()}catch(e){}
+    const afterStart=()=>{resume();setTimeout(()=>speak(`${R.st[0].n}. Az ajtók zárása után a következő állomás: ${R.st[1].n}.`),400)};
+    if(!cfg.tutorialDone){
+      showTutPrompt(()=>{afterStart();startTutorialMode()},()=>{afterStart()});
+    } else afterStart();
   };
-  if(!cfg.tutorialDone){
-    showTutPrompt(
-      ()=>{ afterStart(); startTutorialMode(); },  // yes → game + tutorial
-      ()=>{ afterStart(); }                       // no  → just game
-    );
-  } else {
-    afterStart();
-  }
+  if(!getNick()) showNickPrompt(go); else go();
 }
 function showEnd(){
   freeze();
+  addScore(S.score, R.name);
   const max=(R.n-1)*160,pct=clamp(S.score/max,0,1),stars=pct>.85?'★★★':pct>.6?'★★☆':pct>.3?'★☆☆':'☆☆☆';
   const rows=S.log.map(l=>`<tr><td>${R.st[l.i].n}</td><td>${l.miss?'kimaradt':(l.late>=0?'+':'−')+mmss(l.late)}</td><td>${l.miss?'–':Math.abs(l.off).toFixed(1)+' m'}</td><td>${l.dep===undefined?'–':(l.dep>=0?'+':'−')+mmss(l.dep)}</td><td>${l.pts}</td></tr>`).join('');
   ovShow(`<div class="card"><div class="full" style="display:flex;gap:18px;align-items:baseline;flex-wrap:wrap"><h1>${R.name} – menet vége</h1><span class="big">${S.score}</span><span style="font-size:26px;color:var(--amber)">${stars}</span><span class="lbl">max. ${max} pont · ${DIFF[cfg.diff].n}</span></div>
@@ -1387,9 +1403,12 @@ let audT=0;
 function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
   if(S){if(!paused){const eb=step(dt);audT-=dt;if(audT<=0){audT=1/25;audioUpdate(eb)}}render(dt);hudT-=dt;if(hudT<=0){updHud();hudT=.08}}
   requestAnimationFrame(frame)}
-for(const k in ESC)delete ESC[k];reset();resize();setCam(cam.mode);showMain();requestAnimationFrame(frame);
+for(const k in ESC)delete ESC[k];reset();resize();setCam(cam.mode);if(!getNick()) showNickPrompt(showMain); else showMain();requestAnimationFrame(frame);
 </script>
 
 <script>if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').then(r=>{navigator.serviceWorker.ready.then(()=>{try{offlineStatus()}catch(e){}})}).catch(()=>{}));</script>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-database-compat.js"></script>
 </body>
 </html>
