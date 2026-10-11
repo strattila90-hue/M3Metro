@@ -137,6 +137,14 @@ th{color:var(--dim);font-weight:500;font-size:10px;letter-spacing:.08em;text-tra
 @keyframes tutpulse{0%,100%{box-shadow:0 0 0 3px var(--amber),0 0 12px rgba(243,170,60,.55)}50%{box-shadow:0 0 0 5px var(--amber),0 0 22px rgba(243,170,60,.9)}}
 #tutTip{position:absolute;left:50%;bottom:56px;transform:translateX(-50%);background:rgba(12,15,14,.92);border:1px solid var(--amber);border-radius:8px;padding:10px 14px;font-size:15px;max-width:90%;text-align:center;z-index:30;pointer-events:none;line-height:1.4}
 #tutTip b{color:var(--amber)}
+
+.gauges{display:flex;gap:8px;font-size:10px;font-family:var(--mono);color:var(--dim)}
+.g{display:flex;flex-direction:column;align-items:center;min-width:36px}
+.g .bar{width:28px;height:6px;background:#1a1f1c;border-radius:2px;overflow:hidden;border:1px solid #2a3330}
+.g .fill{height:100%;transition:width .2s}
+.g.hot .fill{background:var(--red)}
+.g.warn .fill{background:var(--amber)}
+.g.ok .fill{background:var(--green)}
 </style>
 
 </head>
@@ -149,6 +157,11 @@ th{color:var(--dim);font-weight:500;font-size:10px;letter-spacing:.08em;text-tra
     <div class="col st"><div id="stName">–</div><div class="row"><span class="lbl" id="stLbl">Következő</span><span id="dist"></span><span id="sched" class="hideS"></span><span id="delta"></span></div></div>
     <div class="col"><div class="row"><span id="clock">00:00:00</span><span>Pont <b id="score">0</b></span><span class="hideS">Utas <b id="pax">0</b></span></div>
       <div class="lamps"><span class="lamp" id="lDoor">AJTÓ</span><span class="lamp" id="lArs">ARS</span><span class="lamp" id="lVb">VB</span><span class="lamp" id="lDir">ELŐRE</span></div></div>
+    <div class="gauges hideS">
+      <div class="g" id="gPower"><div class="bar"><div class="fill" style="width:0%"></div></div><span>GÉP</span></div>
+      <div class="g" id="gBrake"><div class="bar"><div class="fill" style="width:0%"></div></div><span>FÉK</span></div>
+      <div class="g" id="gAmp"><div class="bar"><div class="fill" style="width:0%"></div></div><span>ÁRAM</span></div>
+    </div>
   </div>
   <div id="toasts" aria-live="polite"></div>
   <div id="lever" class="glass"></div>
@@ -543,11 +556,11 @@ function step(dt){
   S.t+=dt;
   const kmh=S.v*3.6,lv=LV[S.lever][0],closed=S.doorState==='closed';
   if(S.eb&&S.v===0&&lv!=='VB')S.eb=false;
-  const pf=S.v<9?1:Math.pow(9/S.v,1.15);
+  const pf=S.v<12?1:Math.pow(12/S.v,0.85);  // gyengébb lecsökkentés, hogy elérje a 110-et
   let tgt=0;
   if(S.eb||lv==='VB')tgt=-1.6;
   else if(S.ars.act)tgt=-1.15;
-  else tgt={T2:-1.15,T1:-.65,'0':0,'1':S.v<8.3?.35:0,'2':.65*pf,'3':.95*pf,'4':1.25*pf}[lv];
+  else tgt={T2:-1.15,T1:-.65,'0':0,'1':S.v<10?.42:0,'2':.85*pf,'3':1.15*pf,'4':1.45*pf}[lv];
   if(tgt>0&&!closed)tgt=0;
   if(tgt>0&&S.inc){tgt=0;S.lockT-=dt;if(S.lockT<=0){S.lockT=4;toast('Vészhelyzet – a menet a helyszín biztosításáig nem folytatható','bad')}}
   const free=cfg.diff==='free';
@@ -558,6 +571,13 @@ function step(dt){
   let a=S.aCmd;if(S.v>.01)a-=.012+.0006*S.v*S.v;
   S.v=Math.max(0,S.v+a*dt);
   S.x+=S.dir*S.v*dt;
+  // mini műszerfal értékek
+  if(!S.brakeTemp)S.brakeTemp=20;
+  if(!S.current)S.current=0;
+  const braking=S.aCmd<-.2||S.eb||lv==='T1'||lv==='T2'||lv==='VB';
+  S.brakeTemp=Math.max(20,Math.min(180,S.brakeTemp+(braking?S.v*0.8: -12)*dt));
+  const power=(S.aCmd>0.1?S.aCmd*S.v*45:0);
+  S.current=Math.max(0,Math.min(1200,S.current+(power-S.current*0.4)*dt));
 
   // ARS (kikapcsolva free módban)
   const lim=free?999:(S.dir>0?limitAt(S.x):10);S.lim=lim;
@@ -1160,6 +1180,14 @@ function buildProg(){const pr=$('prog');pr.innerHTML='<div class="track"></div>'
 let hudT=0;
 function updHud(){
   const kmh=S.v*3.6;$('spd').innerHTML=`${Math.round(kmh)}<small>km/h</small>`;
+  // mini műszerfal frissítés
+  if($('gPower')){
+    const power=Math.min(100,Math.round((S.aCmd>0?S.aCmd:0)*70+(S.current||0)/12));
+    const bt=Math.min(100,Math.round(((S.brakeTemp||20)-20)/1.6));
+    const amp=Math.min(100,Math.round((S.current||0)/10));
+    const setG=(id,val,hot)=>{const g=$(id);if(!g)return;const f=g.querySelector('.fill');if(f)f.style.width=val+'%';g.className='g '+(hot||val>85?'hot':val>60?'warn':'ok')};
+    setG('gPower',power);setG('gBrake',bt,bt>75);setG('gAmp',amp);
+  }
   [...$('ars').children].forEach(s=>{const v=+s.dataset.v;s.className=v===S.lim?(S.ars.over?'over':'on'):''});
   const nl=S.dir>0?nextLimit(S.x):null;$('pre').textContent=nl?`Előjelzés ${nl.l} · ${Math.round(nl.a-S.x)} m`:'';
   let e=null,lbl,dist='',sch='',dl='',cls='';
@@ -1182,7 +1210,7 @@ function updHud(){
   for(let i=0;i<R.n;i++){const d=$('pd'+i);if(d)d.classList.toggle('done',!!S.served[i])}
 }
 
-const APP_VER='2026.10.11-23',SHARE_URL='https://m3metro.vercel.app';
+const APP_VER='2026.10.11-24',SHARE_URL='https://m3metro.vercel.app';
 /* ---------- QR-kód generátor (bájt mód, M szint, 1–10. verzió) ---------- */
 const QR=(()=>{
   const ECC=[-1,10,16,26,18,24,16,18,22,22,26],NB=[-1,1,1,1,2,2,4,4,4,5,5];
