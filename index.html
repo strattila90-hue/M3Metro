@@ -996,6 +996,46 @@ function updHud(){
   for(let i=0;i<R.n;i++){const d=$('pd'+i);if(d)d.classList.toggle('done',!!S.served[i])}
 }
 
+const APP_VER='2026.10.11-13',SHARE_URL='https://m3metro.vercel.app';
+/* ---------- QR-kód generátor (bájt mód, M szint, 1–10. verzió) ---------- */
+const QR=(()=>{
+  const ECC=[-1,10,16,26,18,24,16,18,22,22,26],NB=[-1,1,1,1,2,2,4,4,4,5,5];
+  const raw=v=>{let r=(16*v+128)*v+64;if(v>=2){const n=Math.floor(v/7)+2;r-=(25*n-10)*n-55;if(v>=7)r-=36}return r};
+  const dataCw=v=>Math.floor(raw(v)/8)-ECC[v]*NB[v];
+  const mul=(x,y)=>{let z=0;for(let i=7;i>=0;i--){z=(z<<1)^((z>>>7)*0x11D);z^=((y>>>i)&1)*x}return z&255};
+  const div=n=>{const r=new Array(n).fill(0);r[n-1]=1;let root=1;for(let i=0;i<n;i++){for(let j=0;j<n;j++){r[j]=mul(r[j],root);if(j+1<n)r[j]^=r[j+1]}root=mul(root,2)}return r};
+  const rem=(d,dv)=>{const r=new Array(dv.length).fill(0);for(const b of d){const f=b^r.shift();r.push(0);dv.forEach((c,i)=>r[i]^=mul(c,f))}return r};
+  function make(text){
+    const bytes=Array.from(new TextEncoder().encode(text));let v=1;while(v<=10&&4+8+bytes.length*8>dataCw(v)*8)v++;if(v>10)throw Error('túl hosszú');
+    const bits=[];const put=(val,n)=>{for(let i=n-1;i>=0;i--)bits.push((val>>>i)&1)};
+    put(4,4);put(bytes.length,8);bytes.forEach(b=>put(b,8));const cap=dataCw(v)*8;put(0,Math.min(4,cap-bits.length));put(0,(8-bits.length%8)%8);
+    for(let p=0xEC;bits.length<cap;p^=0xEC^0x11)put(p,8);
+    const data=[];for(let i=0;i<bits.length;i+=8){let b=0;for(let j=0;j<8;j++)b=b<<1|bits[i+j];data.push(b)}
+    const nb=NB[v],el=ECC[v],rc=Math.floor(raw(v)/8),ns=nb-rc%nb,sl=Math.floor(rc/nb),dv=div(el),blocks=[];
+    for(let i=0,k=0;i<nb;i++){const d=data.slice(k,k+sl-el+(i<ns?0:1));k+=d.length;const e=rem(d,dv);if(i<ns)d.push(0);blocks.push(d.concat(e))}
+    const cw=[];for(let i=0;i<blocks[0].length;i++)blocks.forEach((b,j)=>{if(i!==sl-el||j>=ns)cw.push(b[i])});
+    const size=v*4+17,M=[...Array(size)].map(()=>new Array(size).fill(false)),F=[...Array(size)].map(()=>new Array(size).fill(false));
+    const sf=(x,y,d)=>{M[y][x]=d;F[y][x]=true};
+    for(let i=0;i<size;i++){sf(6,i,i%2===0);sf(i,6,i%2===0)}
+    for(const[cx,cy]of[[3,3],[size-4,3],[3,size-4]])for(let dy=-4;dy<=4;dy++)for(let dx=-4;dx<=4;dx++){const x=cx+dx,y=cy+dy,d=Math.max(Math.abs(dx),Math.abs(dy));if(x>=0&&x<size&&y>=0&&y<size)sf(x,y,d!==2&&d!==4)}
+    let al=[];if(v>1){const n=Math.floor(v/7)+2,step=Math.ceil((v*4+4)/(n*2-2))*2;al=[6];for(let i=0,p=size-7;i<n-1;i++,p-=step)al.splice(1,0,p)}
+    al.forEach((a,i)=>al.forEach((b,j)=>{if((i===0&&j===0)||(i===0&&j===al.length-1)||(i===al.length-1&&j===0))return;for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++)sf(a+dx,b+dy,Math.max(Math.abs(dx),Math.abs(dy))!==1)}));
+    const fmt=mask=>{const d=(0<<3)|mask;let r=d;for(let i=0;i<10;i++)r=(r<<1)^((r>>>9)*0x537);const b=((d<<10)|r)^0x5412,g=i=>((b>>>i)&1)===1;
+      for(let i=0;i<=5;i++)sf(8,i,g(i));sf(8,7,g(6));sf(8,8,g(7));sf(7,8,g(8));for(let i=9;i<15;i++)sf(14-i,8,g(i));
+      for(let i=0;i<8;i++)sf(size-1-i,8,g(i));for(let i=8;i<15;i++)sf(8,size-15+i,g(i));sf(8,size-8,true)};
+    fmt(0);
+    if(v>=7){let r=v;for(let i=0;i<12;i++)r=(r<<1)^((r>>>11)*0x1F25);const b=v<<12|r;for(let i=0;i<18;i++){const bt=((b>>>i)&1)===1,a=size-11+i%3,c=Math.floor(i/3);sf(a,c,bt);sf(c,a,bt)}}
+    let i=0;for(let r=size-1;r>=1;r-=2){if(r===6)r=5;for(let vt=0;vt<size;vt++)for(let j=0;j<2;j++){const x=r-j,up=((r+1)&2)===0,y=up?size-1-vt:vt;if(!F[y][x]&&i<cw.length*8){M[y][x]=((cw[i>>>3]>>>(7-(i&7)))&1)===1;i++}}}
+    const mk=[(x,y)=>(x+y)%2===0,(x,y)=>y%2===0,(x,y)=>x%3===0,(x,y)=>(x+y)%3===0,(x,y)=>(Math.floor(x/3)+Math.floor(y/2))%2===0,(x,y)=>x*y%2+x*y%3===0,(x,y)=>(x*y%2+x*y%3)%2===0,(x,y)=>((x+y)%2+x*y%3)%2===0];
+    const apply=m=>{for(let y=0;y<size;y++)for(let x=0;x<size;x++)if(!F[y][x]&&mk[m](x,y))M[y][x]=!M[y][x]};
+    const pen=()=>{let p=0,dark=0;for(let y=0;y<size;y++){let rx=1,ry=1;for(let x=0;x<size;x++){if(M[y][x])dark++;
+      if(x>0){if(M[y][x]===M[y][x-1]){rx++;if(rx===5)p+=3;else if(rx>5)p++}else rx=1;if(M[x][y]===M[x-1][y]){ry++;if(ry===5)p+=3;else if(ry>5)p++}else ry=1}
+      if(x>0&&y>0&&M[y][x]===M[y-1][x]&&M[y][x]===M[y][x-1]&&M[y][x]===M[y-1][x-1])p+=3}}
+      return p+Math.floor(Math.abs(dark*20-size*size*10)/(size*size))*10};
+    let best=0,bp=1e9;for(let m=0;m<8;m++){apply(m);fmt(m);const q=pen();if(q<bp){bp=q;best=m}apply(m)}
+    apply(best);fmt(best);return M}
+  return{make}
+})();
 /* ---------- menük ---------- */
 const ov=$('ov');
 const inGame=()=>S&&S.started&&!S.ended;
@@ -1013,12 +1053,13 @@ function showMain(){
     <button class="mbtn ${inGame()?'':'pri'}" id="mNew">Új menet<small>útvonal kiválasztása</small></button>
     <button class="mbtn" id="mSet">Beállítások<small>hang, bemondó, nehézség, kamera</small></button>
     <button class="mbtn" id="mHelp">Irányítás</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px"><button class="mbtn" id="mShare">Megosztás<small>QR-kód és link</small></button><button class="mbtn" id="mUpd">Frissítés<small>v${APP_VER}</small></button></div>
     <button class="mbtn quit" id="mQuit">Kilépés</button>
    </div></div>`);
-  try{if(window.caches&&navigator.serviceWorker&&navigator.serviceWorker.controller)caches.keys().then(k=>{if(k.some(n=>n.startsWith('metro-szim'))&&$('offl'))$('offl').textContent='· offline is játszható'}).catch(()=>{})}catch(e){}
+  offlineStatus();
   if(inGame())$('mCont').onclick=resume;
   $('mNew').onclick=()=>inGame()?showConfirm(showMain,showRoutes,'Új menet indítása','A jelenlegi menet és pontjai elvesznek.'):showRoutes();
-  $('mSet').onclick=()=>showSettings(showMain);$('mHelp').onclick=()=>showHelp(showMain);
+  $('mSet').onclick=()=>showSettings(showMain);$('mShare').onclick=()=>showShare(showMain);$('mUpd').onclick=()=>showUpdate(showMain);$('mHelp').onclick=()=>showHelp(showMain);
   $('mQuit').onclick=()=>inGame()?showConfirm(showMain,quitApp,'Kilépés','A jelenlegi menet és pontjai elvesznek.'):quitApp();
 }
 function quitApp(){
@@ -1027,6 +1068,46 @@ function quitApp(){
   setTimeout(()=>ovShow(`<div class="card">${head('Viszlát!','')}<p class="full">A menetet lezártad. Az alkalmazást a telefon alkalmazásváltójával zárhatod be teljesen.</p>
    <button class="mbtn pri full" id="qBack">Vissza a főmenübe</button></div>`)||($('qBack').onclick=()=>{reset();showMain()}),250);
 }
+function showShare(back){
+  ovShow(`<div class="card">${head('Megosztás','M3 Metró Szimulátor')}
+   <div style="display:flex;justify-content:center;align-items:center"><canvas id="qrC" width="264" height="264" style="width:min(220px,60vw);height:auto;border-radius:8px;background:#fff" aria-label="QR-kód a játék címével"></canvas></div>
+   <div style="display:flex;flex-direction:column;gap:10px;justify-content:center">
+    <p>Olvastasd be a QR-kódot a másik telefon kamerájával, vagy küldd el a linket. Androidon és iPhone-on is telepíthető, offline is fut.</p>
+    <div id="shLink" style="font-family:var(--mono);font-size:15px;padding:10px;border:1px solid #2f3a36;border-radius:6px;background:#0f1312;user-select:all;-webkit-user-select:all;word-break:break-all">${SHARE_URL}</div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap"><button class="mbtn pri" id="shCopy" style="flex:1">Link másolása</button>${navigator.share?'<button class="mbtn" id="shSys" style="flex:1">Küldés…</button>':''}</div>
+    <p class="note" id="shMsg"></p></div>
+   <button class="mbtn full" id="shBack">Vissza</button></div>`);
+  try{const M=QR.make(SHARE_URL),c=$('qrC'),x=c.getContext('2d'),n=M.length,q=4,s=Math.floor(c.width/(n+2*q)),o=Math.floor((c.width-s*n)/2);
+    x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.fillStyle='#0c0f0e';M.forEach((r,y)=>r.forEach((b,xx)=>{if(b)x.fillRect(o+xx*s,o+y*s,s,s)}))}catch(e){}
+  const sel=()=>{try{const r=document.createRange();r.selectNodeContents($('shLink'));const s=getSelection();s.removeAllRanges();s.addRange(r)}catch(e){}};
+  $('shCopy').onclick=()=>{const ok=()=>{$('shMsg').textContent='Link a vágólapon – illeszd be üzenetbe.';toast('Link másolva','good')};
+    try{navigator.clipboard.writeText(SHARE_URL).then(ok,()=>{sel();$('shMsg').textContent='Kijelöltem a linket – másold ki hosszan nyomva.'})}catch(e){sel();$('shMsg').textContent='Kijelöltem a linket – másold ki hosszan nyomva.'}};
+  if(navigator.share)$('shSys').onclick=()=>navigator.share({title:'M3 Metró Szimulátor',text:'Próbáld ki ezt a metróvezető játékot!',url:SHARE_URL}).catch(()=>{});
+  $('shBack').onclick=back;
+}
+function showUpdate(back){
+  ovShow(`<div class="card">${head('Frissítés','jelenlegi: v'+APP_VER)}
+   <p class="full" id="upMsg">Frissítés keresése…</p>
+   <button class="mbtn" id="upBack">Vissza</button><button class="mbtn pri" id="upGo" hidden>Letöltés és újraindítás</button></div>`);
+  $('upBack').onclick=back;const msg=t=>{const e=$('upMsg');if(e)e.textContent=t};
+  const isApp=!!(navigator.serviceWorker&&navigator.serviceWorker.controller);
+  if(!/vercel\.app$/.test(location.hostname)&&!isApp){msg('Ez az előnézeti változat mindig a legfrissebb verziót mutatja. A telepített app a m3metro.vercel.app címről frissül.');return}
+  if(!navigator.onLine){msg('Nincs internetkapcsolat. Csatlakozz netre, és próbáld újra – addig az eltárolt verzió fut offline.');return}
+  fetch('./index.html?v='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(async h=>{const m=h.match(/APP_VER='([^']+)'/),nv=m?m[1]:null;
+    if(!nv){msg('Nem sikerült ellenőrizni a verziót. Próbáld újra később.');return}
+    if(nv===APP_VER){msg('A legfrissebb verzió fut (v'+APP_VER+').');return}
+    msg('Új verzió érhető el: v'+nv+'. Letöltés után a játék újraindul, a beállításaid megmaradnak.');const b=$('upGo');b.hidden=false;
+    b.onclick=async()=>{b.disabled=true;msg('Letöltés…');try{const reg=await navigator.serviceWorker.getRegistration();if(reg)await reg.update();
+      if(window.caches){const ks=await caches.keys();await Promise.all(ks.filter(k=>k.startsWith('metro-szim')).map(k=>caches.delete(k)))}}catch(e){}
+      location.reload()}}).catch(()=>msg('A szerver nem érhető el. Próbáld újra később.'));
+}
+function offlineStatus(){const el=$('offl');if(!el)return;
+  const sw=navigator.serviceWorker;if(!sw||!window.caches){el.textContent='';return}
+  if(!sw.controller){el.style.color='var(--dim)';el.textContent=/vercel\.app$/.test(location.hostname)?'· offline mód előkészítése…':'';return}
+  caches.keys().then(ks=>Promise.all(ks.filter(k=>k.startsWith('metro-szim')).map(k=>caches.open(k).then(c=>c.match('./index.html'))))).then(r=>{
+    if(r.some(Boolean)){el.style.color='var(--green)';el.textContent=navigator.onLine?'· offline is játszható':'· offline mód'}
+    else{el.style.color='var(--dim)';el.textContent='· offline mód előkészítése…';try{sw.controller.postMessage('precache')}catch(e){}}}).catch(()=>{})}
+addEventListener('online',offlineStatus);addEventListener('offline',offlineStatus);
 function showPause(){
   freeze();
   ovShow(`<div class="card">${head('Szünet',R.name)}
@@ -1035,11 +1116,12 @@ function showPause(){
     <button class="mbtn" id="pRestart">Menet újrakezdése</button>
     <button class="mbtn" id="pSet">Beállítások</button>
     <button class="mbtn" id="pHelp">Irányítás</button>
+    <button class="mbtn" id="pShare">Megosztás (QR-kód, link)</button>
     <button class="mbtn quit" id="pQuit">Kilépés a főmenübe</button>
    </div></div>`);
   $('pCont').onclick=resume;
   $('pRestart').onclick=()=>showConfirm(showPause,startGame,'Újrakezdés','A menet elölről indul, a pontok elvesznek.');
-  $('pSet').onclick=()=>showSettings(showPause);$('pHelp').onclick=()=>showHelp(showPause);
+  $('pSet').onclick=()=>showSettings(showPause);$('pHelp').onclick=()=>showHelp(showPause);$('pShare').onclick=()=>showShare(showPause);
   $('pQuit').onclick=()=>showConfirm(showPause,exitToMain,'Kilépés a főmenübe','A jelenlegi menet és pontjai elvesznek.');
 }
 function exitToMain(){if(S)S.started=false;reset();showMain()}
@@ -1183,6 +1265,6 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
 for(const k in ESC)delete ESC[k];reset();resize();setCam(cam.mode);showMain();requestAnimationFrame(frame);
 </script>
 
-<script>if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));</script>
+<script>if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').then(r=>{navigator.serviceWorker.ready.then(()=>{try{offlineStatus()}catch(e){}})}).catch(()=>{}));</script>
 </body>
 </html>
