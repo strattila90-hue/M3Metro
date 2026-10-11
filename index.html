@@ -77,7 +77,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--display);overflow:h
 .st{flex:1;min-width:0}
 #stName{font-size:16px;font-weight:700;line-height:1.1;overflow:hidden;text-overflow:ellipsis}
 #stName i{font-style:normal;font-size:11px;padding:0 4px;border-radius:3px;margin-right:5px;color:#fff;vertical-align:2px}
-.row{display:flex;gap:9px;align-items:baseline;font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums}
+.row{display:flex;gap:8px;align-items:baseline;font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .ok{color:var(--green)}.warn{color:var(--amber)}.bad{color:var(--red)}
 .lamps{display:flex;gap:4px}
 .lamp{font-size:10px;letter-spacing:.06em;padding:1px 5px;border-radius:3px;background:#101513;color:#46524c;border:1px solid #26302c}
@@ -149,7 +149,7 @@ th{color:var(--dim);font-weight:500;font-size:10px;letter-spacing:.08em;text-tra
     </div>
     <div class="hud-center">
       <div id="stName">–</div>
-      <div class="row"><span class="lbl" id="stLbl">Következő</span><span id="dist"></span><span id="delta"></span></div>
+      <div class="row" style="gap:8px"><span id="stLbl">–</span><span id="dist"></span><span id="delta"></span></div>
     </div>
     <div class="hud-right">
       <div class="row"><span id="clock">00:00:00</span><span>Pont <b id="score">0</b></span><span class="hideS">Utas <b id="pax">0</b></span></div>
@@ -1098,7 +1098,7 @@ function updHud(){
   $('stLbl').textContent=lbl;$('stName').innerHTML=e?`<i style="background:${LINES[e.l].c};color:${e.l==='M1'?'#111':'#fff'}">${e.l}</i>${e.n}`:'–';
   $('dist').textContent=dist;$('sched').textContent=sch;const de=$('delta');de.textContent=dl;de.className=cls;
   $('clock').textContent=clockStr(S.t);$('score').textContent=S.score;$('pax').textContent=S.onboard;
-  $('lDoor').className='lamp '+(S.doorState==='closed'?'g':'r');$('lDoor').textContent=S.doorState==='closed'?'AJTÓ ZÁRVA':'AJTÓ NYITVA';
+  $('lDoor').className='lamp '+(S.doorState==='closed'?'g':'r');$('lDoor').textContent=S.doorState==='closed'?'ZÁRVA':'NYITVA';
   $('lArs').className='lamp '+(S.ars.act?'r':S.ars.over?'a':'');$('lVb').className='lamp '+(S.eb?'r':'');
   const bd=$('bDir');bd.classList.toggle('rev',S.dir<0);$('dirL').textContent=S.dir>0?'E':'H';bd.setAttribute('aria-label','Irányváltó: '+(S.dir>0?'előre':'hátra'));
   const sb=$('b112');sb.classList.toggle('alert',!!S.inc&&!S.inc.called);sb.textContent=S.inc&&S.inc.called&&S.inc.phase!=='crew'?'112 · '+Math.max(0,Math.ceil(S.inc.ct)):'112';
@@ -1108,7 +1108,7 @@ function updHud(){
   for(let i=0;i<R.n;i++){const d=$('pd'+i);if(d)d.classList.toggle('done',!!S.served[i])}
 }
 
-const APP_VER='2026.10.11-31',SHARE_URL='https://m3metro.vercel.app';
+const APP_VER='2026.10.11-32',SHARE_URL='https://m3metro.vercel.app';
 /* ---------- QR-kód generátor (bájt mód, M szint, 1–10. verzió) ---------- */
 const QR=(()=>{
   const ECC=[-1,10,16,26,18,24,16,18,22,22,26],NB=[-1,1,1,1,2,2,4,4,4,5,5];
