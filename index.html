@@ -611,10 +611,12 @@ const cv=document.getElementById('cv'),ctx=cv.getContext('2d');let W=300,H=200,d
 function resize(){const el=cv.parentElement;dpr=Math.min(eco()?1:1.75,window.devicePixelRatio||1);W=el.clientWidth;H=el.clientHeight;cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)}
 new ResizeObserver(resize).observe(cv.parentElement);
 const SPR={};
-function buildSprites(){const mk=(dark,flip)=>{const c=document.createElement('canvas');c.width=SPR_W;c.height=SPR_H;const x=c.getContext('2d');if(flip){x.translate(SPR_W,0);x.scale(-1,1)}x.drawImage(img,0,0,SPR_W,SPR_H);
-  if(dark){x.setTransform(1,0,0,1,0,0);x.globalCompositeOperation='source-atop';x.fillStyle='rgba(6,10,14,.42)';x.fillRect(0,0,SPR_W,SPR_H)}return c};
-  SPR.l=mk(0,0);SPR.d=mk(1,0);SPR.lf=mk(0,1);SPR.df=mk(1,1)}
+// A sötétített kocsit egyszer képpé alakítjuk (Image), mert a telefon háttérben törölheti a rejtett vásznakat.
+function buildSprites(){try{const c=document.createElement('canvas');c.width=SPR_W;c.height=SPR_H;const x=c.getContext('2d');x.drawImage(img,0,0,SPR_W,SPR_H);
+  x.globalCompositeOperation='source-atop';x.fillStyle='rgba(6,10,14,.42)';x.fillRect(0,0,SPR_W,SPR_H);
+  const d=new Image();d.onload=()=>{SPR.d=d};d.src=c.toDataURL('image/png')}catch(e){}}
 img.onload=buildSprites;if(img.complete&&img.naturalWidth)buildSprites();
+const sprOK=s=>s&&s.complete&&s.naturalWidth>0;
 const eco=()=>cfg.gfx==='eco';
 function camPPM(){const m=cam.mode,base=m==='szer'?W/(TRAIN_L+14):W/72;return clamp(base*cam.z[m],2,H*.6)}
 function camTarget(ppm){const vw=W/ppm,m=cam.mode;
@@ -666,8 +668,9 @@ function render(dt){
   for(let k=0;k<NCAR;k++){const left=S.x-k*PITCH-CAR_L;if(left>vx1||left+CAR_L<vx0)continue;
     const lit=stationAt(left+CAR_L/2)>=0;
     const px=X(left),py=railY-ch,cs=S.car[k],cxs=px+cw/2;ctx.save();if(cfg.sway){ctx.translate(cxs,railY);ctx.rotate(cs.a);ctx.translate(-cxs,-railY-cs.y*(ppm+20))}
-    const spr=k===NCAR-1?(lit?SPR.lf:SPR.df):(lit?SPR.l:SPR.d);if(spr)ctx.drawImage(spr,px,py,cw,ch)
-    else{ctx.fillStyle='#3d6c95';ctx.fillRect(px,py+ch*.15,cw,ch*.6)}
+    const spr=!lit&&sprOK(SPR.d)?SPR.d:img;
+    if(sprOK(spr)){if(k===NCAR-1){ctx.save();ctx.translate(px+cw,0);ctx.scale(-1,1);ctx.drawImage(spr,0,py,cw,ch);ctx.restore()}else ctx.drawImage(spr,px,py,cw,ch)}
+    else{ctx.fillStyle='#3d6c95';ctx.fillRect(px,py+ch*.12,cw,ch*.62)}
     if(S.doors>0)for(let d=0;d<2;d++)drawDoor(k*2+d,ppm,railY,X,lit);ctx.restore()}
   // vészfék: izzó kerekek
   if(S.ebOn){ctx.save();ctx.globalCompositeOperation='lighter';for(const o of axles()){const sx=X(S.x-o),sy=railY-.1*ppm;if(sx<-20||sx>W+20)continue;
@@ -980,7 +983,8 @@ addEventListener('keydown',e=>{if(!S)return;const k=e.key;
   else if(k==='c'||k==='C')nextCam();
   else if(k==='+'||k==='=')setZoom(cam.z[cam.mode]*1.25);else if(k==='-')setZoom(cam.z[cam.mode]/1.25)});
 addEventListener('keyup',e=>{if(e.key==='h'||e.key==='H')hornOff()});
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&inGame()&&!paused)showPause()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){if(inGame()&&!paused)showPause()}else{resize();if(!sprOK(img)){img.src=CAR_IMG}}});
+cv.addEventListener('contextrestored',resize);addEventListener('pageshow',resize);
 
 let last=performance.now();
 let audT=0;
