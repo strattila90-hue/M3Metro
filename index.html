@@ -320,10 +320,10 @@ function showTutorial(back){
   else showTutPrompt(()=>{if(back)back();startTutorialMode();resume()},()=>{if(back)back();else resume()});
 }
 
-const DIFF={easy:{tol:6,ars:4,n:'Könnyű',d:'±6 m ajtónyitási tűrés, engedékeny ARS.'},normal:{tol:4,ars:2.5,n:'Normál',d:'±4 m tűrés, 2,5 s ARS-türelmi idő.'},sim:{tol:2,ars:1.5,n:'Szimulátor',d:'±2 m tűrés, szigorú ARS, 150 m-en belül nincs távolságkijelzés.'}};
+const DIFF={easy:{tol:6,ars:4,n:'Könnyű',d:'±6 m ajtónyitási tűrés, engedékeny ARS.'},normal:{tol:4,ars:2.5,n:'Normál',d:'±4 m tűrés, 2,5 s ARS-türelmi idő.'},sim:{tol:2,ars:1.5,n:'Szimulátor',d:'±2 m tűrés, szigorú ARS, 150 m-en belül nincs távolságkijelzés.'},free:{tol:12,ars:999,n:'Szabad (No Limit)',d:'Nincs sebességkorlát és ARS. 100 km/h felett kisiklás veszélye!'}};
 const tol=()=>DIFF[cfg.diff].tol;
-const CAMS=['menet','fulke','szer','hatra'],CAMN={menet:'Menet',fulke:'Fülke',szer:'Szerelvény',hatra:'Hátra'};
-const cam={mode:CAMS.includes(cfg.cam)?cfg.cam:'menet',z:{menet:1,fulke:3.2,szer:1,hatra:1},off:0,d:0,sw:false,last:0,ppm:0};
+const CAMS=['menet','fulke','szer','hatra','utas'],CAMN={menet:'Menet',fulke:'Fülke',szer:'Szerelvény',hatra:'Hátra',utas:'Utas'};
+const cam={mode:CAMS.includes(cfg.cam)?cfg.cam:'menet',z:{menet:1,fulke:3.2,szer:1,hatra:1,utas:2.4},off:0,d:0,sw:false,last:0,ppm:0};
 let R=null,S=null,paused=true,ppmNow=10;
 const vib=p=>{if(cfg.vib&&navigator.vibrate)try{navigator.vibrate(p)}catch(e){}};
 const img=new Image();img.src=CAR_IMG;
@@ -352,7 +352,8 @@ function reset(){
   const now=new Date();
   S={started:false,t:0,base:now.getHours()*3600+(now.getMinutes()+1)*60,x:0,v:0,dir:1,lever:N0,aCmd:0,eb:false,
     doors:1,doorState:'open',doorT:0,cur:0,next:1,served:[true],departed:[],log:[],score:0,onboard:Math.round(rnd(90,140)),
-    ars:{t:0,act:false,over:false},pax:[],spawned:[],D:[],rk:0,ax:[],shoe:[],fx:[],flash:0,dark:0,endT:null,ended:false,runQ:[],incPlan:[],inc:null,crew:[],str:null,events:[],lockT:0,amb:[],car:Array.from({length:NCAR},()=>({y:0,vy:0,a:0,va:0}))};
+    ars:{t:0,act:false,over:false},pax:[],spawned:[],D:[],rk:0,ax:[],shoe:[],fx:[],flash:0,dark:0,endT:null,ended:false,runQ:[],incPlan:[],inc:null,crew:[],str:null,events:[],lockT:0,amb:[],car:Array.from({length:NCAR},()=>({y:0,vy:0,a:0,va:0})),
+    derailed:null,derailT:0,damage:0};
   for(let i=0;i<NCAR*2;i++)S.D.push({al:0,t:0});
   axles().forEach((o,i)=>S.ax[i]=Math.floor((S.x-o)/JOINT));
   shoes().forEach((o,i)=>S.shoe[i]=inGap(S.x-o));
@@ -549,20 +550,31 @@ function step(dt){
   else tgt={T2:-1.15,T1:-.65,'0':0,'1':S.v<8.3?.35:0,'2':.65*pf,'3':.95*pf,'4':1.25*pf}[lv];
   if(tgt>0&&!closed)tgt=0;
   if(tgt>0&&S.inc){tgt=0;S.lockT-=dt;if(S.lockT<=0){S.lockT=4;toast('Vészhelyzet – a menet a helyszín biztosításáig nem folytatható','bad')}}
+  const free=cfg.diff==='free';
   if(tgt>0&&S.dir<0)tgt=S.v<1.8?.3:0;
-  if(tgt>0&&S.v>24.5)tgt=0;
+  if(tgt>0&&S.v>(free?45:24.5))tgt=0;  // free módban ~160 km/h a hard limit
   const rate=tgt<S.aCmd?(S.eb?6:1.8):1.3;
   S.aCmd+=clamp(tgt-S.aCmd,-rate*dt,rate*dt);
   let a=S.aCmd;if(S.v>.01)a-=.012+.0006*S.v*S.v;
   S.v=Math.max(0,S.v+a*dt);
   S.x+=S.dir*S.v*dt;
 
-  // ARS
-  const lim=S.dir>0?limitAt(S.x):10;S.lim=lim;
-  const over=kmh>lim+1.5;S.ars.over=over;
+  // ARS (kikapcsolva free módban)
+  const lim=free?999:(S.dir>0?limitAt(S.x):10);S.lim=lim;
+  const over=!free&&kmh>lim+1.5;S.ars.over=over;
   if(over){S.ars.t+=dt;if(!S.ars.act&&((S.ars.t>DIFF[cfg.diff].ars&&S.aCmd>-.3)||kmh>lim+8)){S.ars.act=true;S.score-=25;vib([80,60,80]);toast('ARS beavatkozás – túllépted a '+lim+' km/h-t. −25','bad');sPssh(.16)}}
   else S.ars.t=0;
   if(S.ars.act&&kmh<lim-4)S.ars.act=false;
+
+  // Free mód kisiklás
+  if(free&&!S.derailed&&kmh>98){
+    S.derailT=(S.derailT||0)+dt*(kmh-90)*.15;
+    if(S.derailT>1.8&&Math.random()<dt*.8){triggerDerail();}
+  }else S.derailT=0;
+  if(S.derailed){
+    S.v=Math.max(0,S.v-dt*8);  // erősen fékez
+    if(S.v<.3){S.v=0;S.derailed.stopped=true;}
+  }
 
   // vészfék-szikrák
   const ebOn=(S.eb||lv==='VB')&&S.v>.8;S.ebOn=ebOn;
@@ -594,7 +606,7 @@ function step(dt){
   if(!S.inc&&EMERG[cfg.emerg][1]>0&&S.dir>0){const i=S.next;
     if(i>0&&i<R.n-1&&!S.incPlan[i]&&R.P[i]-S.x<330){S.incPlan[i]=true;
       if(S.v>6&&Math.random()<EMERG[cfg.emerg][1]){const c=S.pax.filter(p=>p.st===i&&p.state==='wait'&&p.x>S.x+110&&p.x<S.x+250);if(c.length)startIncident(pick(c),i)}}}
-  updIncident(dt);updCrew(dt);
+  updIncident(dt);updCrew(dt);updDerail(dt);
 
   // indulás
   if(S.cur>=0&&!S.departed[S.cur]&&closed&&S.x-R.P[S.cur]>1.5){
@@ -670,8 +682,54 @@ function updIncident(dt){
     if(!I.hit&&I.wt>=1.1&&I.p.state!=='stand'){I.p.state='stand';I.p.d=.12}
     if(I.wt>=3)finishIncident()}
 }
+
+/* ---------- free mód kisiklás ---------- */
+function triggerDerail(){
+  if(S.derailed)return;
+  S.derailed={t:0,stopped:false,restoring:false};
+  S.damage=Math.min(1,S.damage+.65);
+  S.v=Math.max(0,S.v*.35);
+  S.flash=.9;S.dark=.4;
+  vib([200,100,200,80,150]);
+  toast('KISIKLÁS! A szerelvény elhagyta a síneket!','bad');
+  // erős hang + rázás
+  try{sPssh(1);setTimeout(()=>sPssh(.8),180);setTimeout(()=>sPssh(.6),400)}catch(e){}
+  // kocsik erősen megdőlnek
+  S.car.forEach((c,i)=>{c.a=(i%2?1:-1)*rnd(.25,.55);c.va=rnd(-2,2);c.y+=rnd(-.4,.6)});
+  // sok szikra / törmelék
+  for(let i=0;i<40;i++)arc(S.x-rnd(0,TRAIN_L),rnd(.6,1.4));
+}
+function updDerail(dt){
+  if(!S.derailed)return;
+  const D=S.derailed;D.t+=dt;
+  // folyamatos rázkódás amíg mozog
+  if(S.v>.4){S.car.forEach(c=>{c.va+=(Math.random()-.5)*4*dt;c.a+=c.va*dt;c.a=clamp(c.a,-.7,.7)});
+    if(Math.random()<dt*8)arc(S.x-rnd(0,TRAIN_L),rnd(.3,.9));}
+  // ha megállt és 112-t hívtak
+  if(D.stopped&&D.restoring){
+    D.rt=(D.rt||0)+dt;
+    if(D.rt>6){
+      // tűzoltók visszaállítják a sínekre
+      S.car.forEach(c=>{c.a*=.3;c.y*=.5});
+      S.derailed=null;
+      toast('A tűzoltók visszaállították a szerelvényt a sínekre. Sérülések maradtak.','good');
+      speak('Tájékoztatjuk kedves utasainkat, hogy a forgalom korlátozottan helyreállt.');
+    }
+  }
+}
+function call112ForDerail(){
+  if(!S.derailed)return false;
+  if(S.derailed.restoring){toast('A tűzoltók már úton vannak');return true;}
+  S.derailed.restoring=true;S.derailed.rt=0;
+  startSiren();vib(60);
+  toast('112 – tűzoltók úton a kisiklott szerelvényhez','ann');
+  setTimeout(()=>speak('A tűzoltók érkeznek a helyszínre.'),400);
+  return true;
+}
+
 function call112(){
   if(!inGame()||paused)return;aInit();
+  if(call112ForDerail())return;  // kisiklás esetén is hívható
   if(!S.inc)return toast('Nincs vészhelyzet – a 112 csak valós vészhelyzetben hívható');
   if(S.inc.called)return toast('A mentők és a tűzoltók már úton vannak');
   S.inc.called=true;S.inc.ct=5;startSiren();vib(60);
@@ -905,6 +963,7 @@ function camTarget(ppm){const vw=W/ppm,m=cam.mode;
   if(m==='fulke')return S.x-vw*.62;
   if(m==='szer')return S.x-TRAIN_L/2-vw/2;
   if(m==='hatra')return S.x-TRAIN_L-vw*.7;
+  if(m==='utas')return S.x-TRAIN_L*.55-vw*.35;  // oldalnézet a középső kocsikról
   return S.x-(W-90)*.72/ppm}
 function setCam(m){cam.mode=m;cam.off=0;cam.sw=true;$('bCam').textContent=CAMN[m]}
 function setZoom(z){cam.z[cam.mode]=clamp(z,.35,10)}
@@ -947,7 +1006,14 @@ function render(dt){
     const lit=stationAt(left+CAR_L/2)>=0;
     const px=X(left),py=railY-ch,cs=S.car[k],cxs=px+cw/2;ctx.save();if(cfg.sway){ctx.translate(cxs,railY);ctx.rotate(cs.a);ctx.translate(-cxs,-railY-cs.y*(ppm+20))}
     const spr=!lit&&sprOK(SPR.d)?SPR.d:img;
-    if(sprOK(spr)){ctx.save();if(k===NCAR-1){ctx.translate(px*2+cw,0);ctx.scale(-1,1)}drawInterior(k,px,py,cw/SPR_W,lit);ctx.drawImage(spr,px,py,cw,ch);ctx.restore()}
+    if(sprOK(spr)){ctx.save();if(k===NCAR-1){ctx.translate(px*2+cw,0);ctx.scale(-1,1)}drawInterior(k,px,py,cw/SPR_W,lit);ctx.drawImage(spr,px,py,cw,ch);
+      // sérülés overlay free mód kisiklás után
+      if(S.damage>0){ctx.globalAlpha=S.damage*.55;ctx.fillStyle='#3a2a1a';
+        for(let i=0;i<8;i++){const dx=rnd(.1,.85)*cw,dy=rnd(.15,.7)*ch;ctx.fillRect(px+dx,py+dy,rnd(4,18),rnd(2,6));}
+        ctx.strokeStyle='#5a3a20';ctx.lineWidth=Math.max(1,cw*.008);ctx.beginPath();
+        for(let i=0;i<5;i++){ctx.moveTo(px+rnd(0,cw),py+rnd(0,ch));ctx.lineTo(px+rnd(0,cw),py+rnd(0,ch));}ctx.stroke();
+        ctx.globalAlpha=1;}
+      ctx.restore()}
     else{ctx.fillStyle='#3d6c95';ctx.fillRect(px,py+ch*.12,cw,ch*.62)}
     if(S.doors>0)for(let d=0;d<2;d++)drawDoor(k*2+d,ppm,railY,X,lit);ctx.restore()}
   drawCouplers(ppm,railY,X);drawHeadlight(ppm,railY,X);
@@ -1109,14 +1175,14 @@ function updHud(){
   $('lDoor').className='lamp '+(S.doorState==='closed'?'g':'r');$('lDoor').textContent=S.doorState==='closed'?'AJTÓ ZÁRVA':'AJTÓ NYITVA';
   $('lArs').className='lamp '+(S.ars.act?'r':S.ars.over?'a':'');$('lVb').className='lamp '+(S.eb?'r':'');
   const bd=$('bDir');bd.classList.toggle('rev',S.dir<0);$('dirL').textContent=S.dir>0?'E':'H';bd.setAttribute('aria-label','Irányváltó: '+(S.dir>0?'előre':'hátra'));
-  const sb=$('b112');sb.classList.toggle('alert',!!S.inc&&!S.inc.called);sb.textContent=S.inc&&S.inc.called&&S.inc.phase!=='crew'?'112 · '+Math.max(0,Math.ceil(S.inc.ct)):'112';
+  const sb=$('b112');const derailAlert=!!S.derailed&&!S.derailed.restoring;sb.classList.toggle('alert',(!!S.inc&&!S.inc.called)||derailAlert);sb.textContent=S.derailed&&S.derailed.restoring?'112 · tűzoltók':(S.inc&&S.inc.called&&S.inc.phase!=='crew'?'112 · '+Math.max(0,Math.ceil(S.inc.ct)):'112');
   $('lDir').textContent=S.dir>0?'ELŐRE':'HÁTRA';$('lDir').className='lamp '+(S.dir>0?'':'a');
   const f=clamp(S.x/R.len,0,1);$('ptr').style.left=`calc(8px + (100% - 16px) * ${f})`;
   const nm=$('pnm');const ni=Math.min(R.n-1,S.cur>=0?S.cur:S.next);nm.textContent=`${ni+1}/${R.n} · ${R.st[ni].n}`;nm.style.left=f<.5?`calc(8px + (100% - 16px) * ${f})`:'auto';nm.style.right=f<.5?'auto':`calc(8px + (100% - 16px) * ${1-f})`;
   for(let i=0;i<R.n;i++){const d=$('pd'+i);if(d)d.classList.toggle('done',!!S.served[i])}
 }
 
-const APP_VER='2026.10.11-18',SHARE_URL='https://m3metro.vercel.app';
+const APP_VER='2026.10.11-20',SHARE_URL='https://m3metro.vercel.app';
 /* ---------- QR-kód generátor (bájt mód, M szint, 1–10. verzió) ---------- */
 const QR=(()=>{
   const ECC=[-1,10,16,26,18,24,16,18,22,22,26],NB=[-1,1,1,1,2,2,4,4,4,5,5];
