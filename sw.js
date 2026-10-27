@@ -1,6 +1,6 @@
 // M3 Metró Szimulátor – offline működés.
 // Telepítéskor mindent letölt (játék, ikonok, betűtípusok), utána net nélkül is indul.
-const C='metro-szim-v10';
+const C='metro-szim-v11';
 const CORE=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./apple-touch-icon.png'];
 const FONT_CSS='https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap';
 async function precacheFonts(c){
