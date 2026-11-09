@@ -102,7 +102,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--display);overflow:h
 #prog .track{position:absolute;left:8px;right:8px;top:14px;height:2px;background:var(--m3);opacity:.7}
 #prog .dot{position:absolute;top:11px;width:8px;height:8px;margin-left:-4px;border-radius:50%;background:var(--bg);border:2px solid var(--m3);box-sizing:border-box}
 #prog .dot.done{background:currentColor}
-#prog .nm{position:absolute;top:22px;font-size:10px;color:var(--dim);white-space:nowrap}
+#prog .nm{position:absolute;top:22px;font-size:10px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #prog .trn{position:absolute;top:8px;width:10px;height:14px;margin-left:-5px;background:var(--amber);border-radius:2px;box-shadow:0 0 8px rgba(243,170,60,.6)}
 .b{height:40px;min-width:44px;padding:0 9px;border:1px solid var(--line);border-radius:5px;background:var(--glass2);color:var(--ink);font-family:var(--display);font-size:14px;font-weight:600;cursor:pointer;flex:none}
 .b.door{min-width:104px;background:#16304f;border-color:#2a5c94;font-size:15px}
@@ -2093,11 +2093,11 @@ function updHud(){
   const sb=$('b112'),xa=S.crash&&S.crash.acc;sb.classList.toggle('alert',!!S.inc&&!S.inc.called||!!xa&&xa.ph==='hit'&&!xa.called);sb.textContent=S.inc&&S.inc.called&&S.inc.phase!=='crew'?'112 · '+Math.max(0,Math.ceil(S.inc.ct)):'112';
   $('lDir').textContent=S.dir>0?'ELŐRE':'HÁTRA';$('lDir').className='lamp '+(S.dir>0?'':'a');
   const f=clamp(S.x/R.len,0,1);$('ptr').style.left=`calc(8px + (100% - 16px) * ${f})`;
-  const nm=$('pnm');const ni=Math.min(R.n-1,S.cur>=0?S.cur:S.next);nm.textContent=`${ni+1}/${R.n} · ${R.st[ni].n}`;nm.style.left=f<.5?`calc(8px + (100% - 16px) * ${f})`:'auto';nm.style.right=f<.5?'auto':`calc(8px + (100% - 16px) * ${1-f})`;
+  const nm=$('pnm');const ni=Math.min(R.n-1,S.cur>=0?S.cur:S.next);nm.textContent=`${ni+1}/${R.n} · ${R.st[ni].n}`;nm.style.left=f<.5?`calc(8px + (100% - 16px) * ${f})`:'auto';nm.style.right=f<.5?'auto':`calc(8px + (100% - 16px) * ${1-f})`;nm.style.maxWidth=`calc(100% - 12px - (100% - 16px) * ${f<.5?f:1-f})`;
   for(let i=0;i<R.n;i++){const d=$('pd'+i);if(d)d.classList.toggle('done',!!S.served[i])}
 }
 
-const APP_VER='2026.11.09-5',SHARE_URL='https://m3metro.vercel.app';
+const APP_VER='2026.11.09-6',SHARE_URL='https://m3metro.vercel.app';
 /* ---------- QR-kód generátor (bájt mód, M szint, 1–10. verzió) ---------- */
 const QR=(()=>{
   const ECC=[-1,10,16,26,18,24,16,18,22,22,26],NB=[-1,1,1,1,2,2,4,4,4,5,5];
@@ -2431,11 +2431,11 @@ function showRoutes(){
 }
 function startGame(){
   try{screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape').catch(()=>{})}catch(e){}
-  aInit();$('toasts').innerHTML='';reset();S.started=true;setCam(cfg.cam);cam.sw=false;cam.d=0;resume();updDoorBtn();
+  aInit();clearTimeout(window.__spk);$('toasts').innerHTML='';reset();S.started=true;setCam(cfg.cam);cam.sw=false;cam.d=0;resume();updDoorBtn();
   try{speechSynthesis.getVoices()}catch(e){}
   if(R.freight)toast(`Tehervonat ${R.st[R.n-1].n} felé – indulás a menetrend szerint az Indulás gombbal`,'good');
-  else if(R.rail)setTimeout(()=>speak(`Üdvözöljük utasainkat. A vonat ${R.st[R.n-1].n} állomásig közlekedik. A következő megálló: ${R.st[1].n}.`),400);
-  else setTimeout(()=>speak(`${R.st[0].n}. Az ajtók zárása után a következő állomás: ${R.st[1].n}.`),400);
+  else if(R.rail)window.__spk=setTimeout(()=>speak(`Üdvözöljük utasainkat. A vonat ${R.st[R.n-1].n} állomásig közlekedik. A következő megálló: ${R.st[1].n}.`),400);
+  else window.__spk=setTimeout(()=>speak(`${R.st[0].n}. Az ajtók zárása után a következő állomás: ${R.st[1].n}.`),400);
 }
 function showEnd(){
   freeze();lastScore[cfg.route]=Math.max(lastScore[cfg.route]||0,S.score);
