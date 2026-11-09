@@ -3,14 +3,23 @@
 2D metróvezető-játék (PWA) a 81-717-es szerelvénnyel. Telepíthető, internet nélkül is fut.
 
 ## Felszíni vasút
-A metró mellett négy felszíni útvonal is választható (Új menet → Felszíni vasút):
+A metró mellett kilenc felszíni útvonal választható (Új menet → Személyvonat / Tehervonat), ebből öt hosszú:
 
-| Útvonal | Szerelvény | Megállók |
+| Útvonal | Megállók | Alap szerelvény |
 |---|---|---|
-| Bzmot – Balaton-felvidék | Bzmot motorkocsi + Btx vezérlőkocsi | Balatonfüred → Révfülöp |
-| Csörgő – Badacsony | M41 „Csörgő” + 3 Bhv személykocsi | Révfülöp → Tapolca |
-| Szili – Dél-Balaton | V43 „Szili” + 4 Bhv személykocsi (felsővezeték alatt) | Siófok → Fonyód |
-| Tehervonat – Százhalombatta | M44 „Bobó” + nyitott, tartály- és fedett teherkocsik | Budapest-Ferencváros → Százhalombatta |
+| Balaton-felvidék | Balatonfüred → Révfülöp | Bzmot + vezérlőkocsi |
+| Badacsony | Révfülöp → Tapolca | M41 + 3 Bhv |
+| Dél-Balaton | Siófok → Fonyód | V43 + 4 Bhv |
+| Százhalombatta (teher) | Budapest-Ferencváros → Százhalombatta | M44 + 7 teherkocsi |
+| Győr (hosszú) | Budapest-Kelenföld → Győr, 13 megálló | V43 + 5 Bhv |
+| Velencei-tó (hosszú) | Budapest-Déli → Székesfehérvár, 11 megálló | V43 + 4 Bhv |
+| Balaton-felvidék teljes (hosszú) | Balatonfüred → Tapolca, 16 megálló | M41 + 4 Bhv |
+| Déli part teljes (hosszú) | Siófok → Balatonszentgyörgy, 14 megálló | V43 + 5 Bhv |
+| Dunaújváros (teher, hosszú) | Ferencváros → Dunaújváros | V43 + 10 teherkocsi |
+
+A távolságok közelítők.
+
+**Járművek oldal** (főmenü → Járművek): lapozható (nyilak, pöttyök vagy húzás), a képre koppintva kürtöl. Van Kürt, Motorhang (felpörgés füsttel) és Fényszóró gomb, valamint rövid leírás és műszaki adatok. Beállítható a kocsik száma (személykocsi 2–7, teherkocsi 3–14, Bzmot 1–3 egység). A listában azok az útvonalak jelennek meg, amelyeken az adott jármű járhat; a V43 csak villamosított vonalon, a metró csak a metróban. A nehezebb szerelvény lassabban gyorsul, a menetrend ehhez igazodik.
 
 - A járműveket a játék rajzolja meg induláskor (a metrókocsi festett, kopott stílusában), nincs hozzájuk külön képfájl.
 - Részletek: forgóvázak tengelyágy-csavarokkal, rugókkal, lengéscsillapítókkal és fékpofákkal; ütközők, csavarkapocs, fékcső; homlok- és zárjelző lámpák; kürtök; tetőszellőzők; zsalus gépterem-ajtók; a személykocsikon lebukó ablakok és útvonaltábla (pl. „Siófok – Fonyód”); teherkocsikon kézifék-kerék, veszélyességi bárca. Festés: Bzmot piros–sárga („piroska”), M41 gyári piros, V43 a 2000-es sorozat kék–sárga–szürke–fehér („Papagáj”) festésével, 15,7 m hosszú, 1180 mm-es kerekekkel.
