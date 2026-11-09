@@ -2,6 +2,21 @@
 
 2D metróvezető-játék (PWA) a 81-717-es szerelvénnyel. Telepíthető, internet nélkül is fut.
 
+## Felszíni vasút
+A metró mellett négy felszíni útvonal is választható (Új menet → Felszíni vasút):
+
+| Útvonal | Szerelvény | Megállók |
+|---|---|---|
+| Bzmot – Balaton-felvidék | Bzmot motorkocsi + Btx vezérlőkocsi | Balatonfüred → Révfülöp |
+| Csörgő – Badacsony | M41 „Csörgő” + 3 Bhv személykocsi | Révfülöp → Tapolca |
+| Szili – Dél-Balaton | V43 „Szili” + 4 Bhv személykocsi (felsővezeték alatt) | Siófok → Fonyód |
+| Tehervonat – Százhalombatta | M44 „Bobó” + nyitott, tartály- és fedett teherkocsik | Budapest-Ferencváros → Százhalombatta |
+
+- A járműveket a játék rajzolja meg induláskor (a metrókocsi festett, kopott stílusában), nincs hozzájuk külön képfájl.
+- A táj követi a napszakot: a valós idő és dátum alapján (napkelte, napnyugta) nappal, hajnalban, alkonyatkor vagy éjjel jelenik meg, éjjel világító ablakokkal, lámpákkal és fényszóróval. A főmenü képe is a napszakhoz igazodik.
+- A felszíni vonatok nehezebbek: lassabban gyorsulnak és fékeznek, a sebességet az EVM felügyeli; a sárga lassújel-táblán a korlátozás tízes egységben áll.
+- Tehervonattal a megállási jelnél a **Megállás**, majd a menetrend szerinti időben az **Indulás** gombbal lehet továbbmenni.
+
 ## Közzététel
 1. Töltsd fel a mappa tartalmát egy GitHub repóba (a fájlok a gyökérben legyenek).
 2. Vercel: New Project → a repó kiválasztása → Framework: Other → Deploy. (Vagy GitHub Pages.)
