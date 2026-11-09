@@ -5,7 +5,7 @@ name: APK
 
 on:
   push:
-    branches: [main, 'claude/**']
+    branches: [main]
     paths-ignore:
       - '**.md'
   workflow_dispatch:
@@ -44,6 +44,9 @@ jobs:
         run: |
           cp android/app/build/outputs/apk/release/app-release.apk "$APK_NAME"
           ls -la "$APK_NAME"
+          # ebből tudja az alkalmazás, hogy van-e újabb verzió (automatikus frissítés)
+          printf '{"code":%d,"version":"%s","apk":"%s","size":%d}\n' $((1000 + GITHUB_RUN_NUMBER)) "$APP_VERSION" "$APK_NAME" $(stat -c %s "$APK_NAME") > apk.json
+          cat apk.json
           gh release delete apk --yes --cleanup-tag || true
-          gh release create apk "$APK_NAME" --title "$APP_NAME – Android-alkalmazás v$APP_VERSION" --latest \
+          gh release create apk "$APK_NAME" apk.json --title "$APP_NAME – Android-alkalmazás v$APP_VERSION" --latest \
             --notes "$APP_NAME v$APP_VERSION önálló Android-alkalmazásként (APK): minden fájl benne van, internet nélkül is működik. Letöltés után koppints a fájlra, engedélyezd az ismeretlen forrásból való telepítést, és telepítsd. Az új verzió a régire rátelepíthető, az adatok megmaradnak. Közvetlen link: https://github.com/${{ github.repository }}/releases/download/apk/$APK_NAME"

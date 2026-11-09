@@ -25,6 +25,7 @@ android {
         ]
         buildConfigField 'int', 'BG_COLOR', cfg.getProperty('bgColor', '0xFF000000')
         buildConfigField 'boolean', 'IMMERSIVE', cfg.getProperty('immersive', 'true')
+        buildConfigField 'String', 'REPO', "\"${cfg.getProperty('repo', '')}\""
         buildConfigField 'String', 'TTS_LANG', "\"${cfg.getProperty('ttsLang', 'hu-HU')}\""
     }
 

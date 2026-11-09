@@ -2,12 +2,15 @@ package hu.jatekok.app;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.SharedPreferences;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.view.View;
@@ -27,11 +30,17 @@ import androidx.core.content.FileProvider;
 import androidx.webkit.WebViewAssetLoader;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+
+import org.json.JSONObject;
 
 /**
  * Önálló Android-alkalmazás egy webes játékhoz / alkalmazáshoz.
@@ -156,6 +165,7 @@ public class MainActivity extends Activity {
         });
 
         web.loadUrl(START);
+        web.postDelayed(() -> checkUpdate(false), 4000);
     }
 
     private boolean hasLocationPermission() {
@@ -277,6 +287,12 @@ public class MainActivity extends Activity {
         super.onResume();
         if (web != null) web.onResume();
         hideSystemUi();
+        if (pendingInstall) {
+            pendingInstall = false;
+            if (Build.VERSION.SDK_INT < 26 || getPackageManager().canRequestPackageInstalls()) installUpdate();
+        } else if (web != null) {
+            checkUpdate(true);
+        }
     }
 
     @Override
@@ -284,6 +300,113 @@ public class MainActivity extends Activity {
         if (tts != null) tts.shutdown();
         if (web != null) web.destroy();
         super.onDestroy();
+    }
+
+
+    /* ---------------- automatikus frissítés ----------------
+       Induláskor (és legfeljebb 6 óránként visszatéréskor) megnézi a GitHub-kiadás apk.json fájlját.
+       Ha újabb az APK, a háttérben letölti, és felajánlja a telepítést (az adatok megmaradnak). */
+    private static final String UPD_BASE = "https://github.com/" + BuildConfig.REPO + "/releases/download/apk/";
+    private volatile boolean updBusy = false;
+    private boolean updAsked = false;
+    private boolean pendingInstall = false;
+
+    private SharedPreferences prefs() { return getSharedPreferences("upd", MODE_PRIVATE); }
+
+    private File updFile() { File d = new File(getCacheDir(), "apk"); d.mkdirs(); return new File(d, "update.apk"); }
+
+    private static HttpURLConnection open(String url) throws Exception {
+        for (int i = 0; i < 6; i++) {
+            HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+            c.setInstanceFollowRedirects(false);
+            c.setConnectTimeout(15000);
+            c.setReadTimeout(30000);
+            c.setUseCaches(false);
+            int code = c.getResponseCode();
+            String loc = c.getHeaderField("Location");
+            if (code >= 300 && code < 400 && loc != null) {
+                url = new URL(new URL(url), loc).toString();
+                c.disconnect();
+                continue;
+            }
+            if (code != 200) { c.disconnect(); throw new Exception("HTTP " + code); }
+            return c;
+        }
+        throw new Exception("túl sok átirányítás");
+    }
+
+    private static byte[] readAll(InputStream in) throws Exception {
+        ByteArrayOutputStream o = new ByteArrayOutputStream();
+        byte[] b = new byte[8192]; int n;
+        while ((n = in.read(b)) > 0) o.write(b, 0, n);
+        return o.toByteArray();
+    }
+
+    private void checkUpdate(boolean fromResume) {
+        if (BuildConfig.REPO.isEmpty() || updBusy) return;
+        final long now = System.currentTimeMillis();
+        if (fromResume && now - prefs().getLong("last", 0) < 6L * 3600 * 1000) return;
+        updBusy = true;
+        new Thread(() -> {
+            try {
+                prefs().edit().putLong("last", now).apply();
+                HttpURLConnection c = open(UPD_BASE + "apk.json?t=" + now);
+                String txt;
+                try (InputStream in = c.getInputStream()) { txt = new String(readAll(in), StandardCharsets.UTF_8); }
+                JSONObject j = new JSONObject(txt);
+                int code = j.getInt("code");
+                long size = j.optLong("size", 0);
+                String ver = j.optString("version", "");
+                String name = j.getString("apk");
+                File f = updFile();
+                if (code <= BuildConfig.VERSION_CODE) { f.delete(); return; }
+                if (!(f.isFile() && prefs().getInt("code", 0) == code && (size == 0 || f.length() == size))) {
+                    File tmp = new File(f.getPath() + ".part");
+                    HttpURLConnection d = open(UPD_BASE + name);
+                    try (InputStream in = d.getInputStream(); OutputStream os = new FileOutputStream(tmp)) {
+                        byte[] b = new byte[65536]; int n;
+                        while ((n = in.read(b)) > 0) os.write(b, 0, n);
+                    }
+                    if (size > 0 && tmp.length() != size) { tmp.delete(); return; }
+                    f.delete();
+                    if (!tmp.renameTo(f)) return;
+                    prefs().edit().putInt("code", code).apply();
+                }
+                runOnUiThread(() -> offerInstall(ver));
+            } catch (Exception ignored) {
+                // nincs internet vagy még nincs kiadás: legközelebb újra próbálja
+            } finally {
+                updBusy = false;
+            }
+        }).start();
+    }
+
+    private void offerInstall(String ver) {
+        if (updAsked || isFinishing()) return;
+        updAsked = true;
+        new AlertDialog.Builder(this)
+                .setTitle("Új verzió érhető el")
+                .setMessage("Letöltöttem az új verziót" + (ver.isEmpty() ? "" : " (v" + ver + ")") + ". Telepíted most? Az adataid megmaradnak.")
+                .setPositiveButton("Telepítés", (dlg, w) -> installUpdate())
+                .setNegativeButton("Később", (dlg, w) -> { })
+                .show();
+    }
+
+    private void installUpdate() {
+        File f = updFile();
+        if (!f.isFile()) return;
+        if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
+            Toast.makeText(this, "Engedélyezd a telepítést ennek az alkalmazásnak, majd lépj vissza: a telepítés folytatódik.", Toast.LENGTH_LONG).show();
+            pendingInstall = true;
+            try { startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName()))); }
+            catch (ActivityNotFoundException e) { pendingInstall = false; }
+            return;
+        }
+        Uri u = FileProvider.getUriForFile(this, getPackageName() + ".files", f);
+        Intent i = new Intent(Intent.ACTION_VIEW);
+        i.setDataAndType(u, "application/vnd.android.package-archive");
+        i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+        try { startActivity(i); } catch (ActivityNotFoundException e) { Toast.makeText(this, "Nem sikerült elindítani a telepítést.", Toast.LENGTH_LONG).show(); }
     }
 
     /** a JavaScriptből hívható függvények (a native.js használja) */
@@ -332,6 +455,10 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void openUrl(String url) { runOnUiThread(() -> openExternal(url)); }
+
+        /** frissítés keresése most (ha van új verzió, párbeszédablak jön) */
+        @JavascriptInterface
+        public void checkUpdate() { runOnUiThread(() -> { updAsked = false; MainActivity.this.checkUpdate(false); }); }
 
         @JavascriptInterface
         public void exit() { runOnUiThread(MainActivity.this::finishAndRemoveTask); }
