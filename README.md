@@ -33,6 +33,20 @@ A távolságok közelítők.
 - Reakciók: kürtszóra a peronon várakozók hátrébb lépnek, a madarak felrebbennek (a vonat közeledtére is); személyvonaton indokolatlan vészfékezéskor az utasok panaszkodnak.
 - Tehervonattal a megállási jelnél a **Megállás**, majd a menetrend szerinti időben az **Indulás** gombbal lehet továbbmenni.
 
+## II. világháború a vasúton (Idővonal 1939–1945)
+Főmenü → **Idővonal 1939–1945**: az idővonalon szabadon lehet ugrani az események között. Mindegyikhez van rövid történelmi összefoglaló forrásokkal, és leírás arról, mi szemléltető a játékban.
+
+| Dátum | Helyszín | Mozdony és kocsik | Esemény a játékban |
+|---|---|---|---|
+| 1943. február 7. | Poljani → Slisszelburg („Győzelem útja”, Leningrád) | Эу 708-64 (0-10-0), szovjet kéttengelyes kocsik | a blokád áttörése után épült ideiglenes vonal frontközeli szakaszán tüzérségi becsapódások, hajnali sötét, elsötétített lámpák |
+| 1944. április 3. | Ferencváros rendező → Kelenföld → Budaörs, a Déli összekötő vasúti hídon át | MÁV 424 „Bivaly” (2′D), MÁV G és O kocsik | légiriadó, amerikai bombázók hullámai, légvédelmi tűz, becsapódások a rendezőben |
+| 1943. augusztus 3. | Szmalyavicsi → Zsodzina → Barisau (Belarusz, „Sínháború”) | DR 52 „Kriegslok” (1′E), G 10 és Om kocsik | partizánrobbantás előtted: meg kell állni a sínhiány előtt, különben kisiklás; a javítás Időugrással átugorható |
+
+- Korabeli alakjelzők (szemaforok), a gőzmozdonyok hajtórúdjai a kerekekkel együtt mozognak, kerékfordulatonként négy gőzpuffanás füsttel, gőzsíp, éjjel a tűzszekrény fénye.
+- **Időugrás** (Szünet menü vagy J billentyű): ugrás a következő eseményhez, illetve a sínjavítás végére; a menetidő hozzáadódik.
+- Sérülés a kijelzőn; 100%-nál a menet véget ér.
+- A deportálóvonatok nem részei a játéknak.
+
 ## Közzététel
 1. Töltsd fel a mappa tartalmát egy GitHub repóba (a fájlok a gyökérben legyenek).
 2. Vercel: New Project → a repó kiválasztása → Framework: Other → Deploy. (Vagy GitHub Pages.)

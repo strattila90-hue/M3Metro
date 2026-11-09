@@ -153,6 +153,20 @@ button:active{transform:translateY(1px)}
 .gside{display:flex;flex-direction:column;gap:8px;min-width:0}
 .gstep{display:flex;align-items:center;gap:8px;font-size:16px;flex-wrap:wrap}.gstep b{font-family:var(--mono);font-size:20px;min-width:28px;text-align:center}.gstep .b{width:44px;font-size:20px}.gstep .b:disabled{opacity:.35}
 .groutes{grid-template-columns:repeat(auto-fit,minmax(170px,1fr));max-height:200px;overflow:auto}
+.mbtn.hist{border-color:#7a5a2a;background:#2a2112}
+.tl{position:relative;height:96px;margin:6px 10px 0}
+.tlbar{position:absolute;left:0;right:0;top:40px;height:4px;border-radius:2px;background:linear-gradient(90deg,#3a3f3c,#7a5a2a 50%,#8a2a20)}
+.tly{position:absolute;top:80px;transform:translateX(-50%);font-family:var(--mono);font-size:11px;color:var(--dim)}
+.tlm{position:absolute;top:10px;transform:translateX(-50%);background:none;border:0;color:var(--ink);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;padding:0 2px}
+.tlm i{order:2;width:16px;height:16px;border-radius:50%;background:#171d1b;border:3px solid var(--amber);margin-top:2px}
+.tlm b{order:1;font-family:var(--mono);font-size:10px;font-weight:500;white-space:nowrap;background:#171d1b;padding:1px 4px;border-radius:3px}
+.tlm.dn{top:31px}.tlm.dn i{order:1}.tlm.dn b{order:2}
+.tlm.on i{background:var(--amber);box-shadow:0 0 10px rgba(243,170,60,.7)}.tlm.on b{color:var(--amber)}
+.hcard{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:10px 18px;border:1px solid #2f3a36;border-radius:6px;padding:12px;background:#121715}
+.hhead h2{margin:2px 0;font-size:24px}.hcard canvas{display:block;width:100%;height:60px;align-self:end}
+.htxt{grid-column:1/-1;display:flex;flex-direction:column;gap:6px;max-width:80ch}.htxt h3{margin:6px 0 0;font-size:15px;letter-spacing:.04em;color:var(--amber)}
+.htxt p,.htxt li{font-family:system-ui,sans-serif;font-size:13px;line-height:1.5;color:#c9c4b3;margin:0}.htxt ul{margin:0;padding-left:18px}.htxt a{color:#8fc0ff}
+@container app (max-width:620px){.hcard{grid-template-columns:minmax(0,1fr)}}
 .grp{margin:2px 0 -6px;font-size:17px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
 .routes button canvas{display:block;width:100%;height:34px;margin-bottom:5px}
 .routes{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px}
@@ -636,7 +650,7 @@ function metroCar(){return{key:'metro',L:CAR_L,H:CAR_H,metro:true,pax:true,style
 const VEHB={bhv:drawBhv,v43:drawV43,m41:drawM41,m44:drawM44,bzmot:()=>drawBz(true),btx:()=>drawBz(false),eas1:()=>drawEas(1),eas2:()=>drawEas(2),zaes1:()=>drawZaes(3),zaes2:()=>drawZaes(4),gbs1:()=>drawGbs(5)};
 const VEHC={};
 function veh(k){if(k==='metro')return VEHC.metro||(VEHC.metro=metroCar());if(!VEHC[k]){const v=VEHB[k]();Object.assign(v,vFinish(v.cv));VEHC[k]=v}return VEHC[k]}
-const CONSISTS={metro:['metro','metro','metro','metro','metro'],bzmot:['bzmot','btx'],m41:['m41','bhv','bhv','bhv'],v43:['v43','bhv','bhv','bhv','bhv'],m44:['m44','eas1','eas2','zaes1','zaes2','zaes1','gbs1','eas1']};
+const CONSISTS={eu:['eu','eu_t','tep','sovo','tep2'],m424:['m424','m424_t','mavg','mavo'],br52:['br52','br52_t','g10','om'],metro:['metro','metro','metro','metro','metro'],bzmot:['bzmot','btx'],m41:['m41','bhv','bhv','bhv'],v43:['v43','bhv','bhv','bhv','bhv'],m44:['m44','eas1','eas2','zaes1','zaes2','zaes1','gbs1','eas1']};
 const VNAME={metro:'81-717 metró',bzmot:'Bzmot motorvonat',m41:'M41 „Csörgő”',v43:'V43 „Szili” (Papagáj)',m44:'M44 „Bobó”'};
 // a szerelvény: kocsik a vonat elejétől hátrafelé, eltolással (off: a vonat elejétől a kocsi elejéig)
 let CARS=[],DOORL=[],AXC=[];
@@ -667,7 +681,7 @@ ROUTES.push(
 // alapértelmezett kocsiszám a régi útvonalakon
 for(const r of ROUTES)if(r.veh&&r.cars===undefined)r.cars={bzmot:2,m41:3,v43:4,m44:7}[r.veh];
 const routeKm=r=>{let m=0;for(const[l,f,t]of r.seq)for(let i=f;i<t;i++)m+=LINES[l].st[i][1];return m/1000};
-const routeKind=r=>!r.veh?'metro':r.freight?'freight':'pass';
+const routeKind=r=>!r.veh?'metro':r.ww2?'ww2':r.freight?'freight':'pass';
 
 /* ---------- járművek: adatok, szerelvény-összeállítás ---------- */
 const VINFO={
@@ -682,20 +696,21 @@ const VINFO={
  metro:{n:'81-717 metrókocsi',sub:'öt kocsis szerelvény',d:'Szovjet gyártású metrókocsi, évtizedekig ez járt a budapesti metróvonalakon. Harmadik sínről kapja az áramot, a sebességét az ARS felügyeli.',
    sp:[['Áramellátás','harmadik sín, 825 V ='],['Szerelvény','5 kocsi'],['Kocsihossz','19,6 m'],['Sebesség a játékban','80 km/h']],kinds:['metro']}};
 const VORDER=['v43','m41','bzmot','m44','metro'];
-const NRANGE={pass:[2,7],freight:[3,14],bz:[1,3]};
+const NRANGE={pass:[2,7],freight:[3,14],bz:[1,3],ww2:[3,16]};
 const FREIGHT_MIX=['eas1','zaes1','eas2','zaes2','gbs1','eas1','zaes1'];
-function vehFits(v,r){const k=routeKind(r);if(!VINFO[v].kinds.includes(k))return false;if(v==='v43'&&!r.elec)return false;return true}
+function vehFits(v,r){if(r.ww2||VINFO[v].kinds.includes('ww2'))return r.veh===v;const k=routeKind(r);if(!VINFO[v].kinds.includes(k))return false;if(v==='v43'&&!r.elec)return false;return true}
 // a választott jármű, ha erre az útvonalra jó; különben az útvonal alapja
-function pickFor(r){const p=cfg.pick||{};if(p.veh&&vehFits(p.veh,r)){const k=routeKind(r),n=p.veh==='bzmot'?p.nb:k==='freight'?p.nf:p.np;return{veh:p.veh,n:n||r.cars}}return{veh:r.veh||'metro',n:r.cars}}
+function pickFor(r){const p=cfg.pick||{};if(p.veh&&vehFits(p.veh,r)){const k=routeKind(r),n=p.veh==='bzmot'?p.nb:k==='freight'?p.nf:k==='ww2'?p.nw:p.np;return{veh:p.veh,n:n||r.cars}}return{veh:r.veh||'metro',n:r.cars}}
 function consistKeys(r){const p=pickFor(r),k=routeKind(r);
+  if(r.ww2){const o=[r.veh,r.veh+'_t'],n=clamp(p.n||r.cars,3,16);for(let i=0;i<n;i++)o.push(r.wag[i%r.wag.length]);return o}
   if(k==='metro')return['metro','metro','metro','metro','metro'];
   if(p.veh==='bzmot'){const u=clamp(p.n||2,1,3),o=[];for(let i=0;i<u;i++)o.push(i===0?'bzmot':i===u-1?'btx':'bzmot');if(u===1)return['bzmot'];return o}
   if(k==='freight'){const o=[p.veh];for(let i=0;i<clamp(p.n||7,3,14);i++)o.push(FREIGHT_MIX[i%FREIGHT_MIX.length]);return o}
   const o=[p.veh];for(let i=0;i<clamp(p.n||4,2,7);i++)o.push('bhv');return o}
 // menetdinamika a szerelvény tömegéhez igazítva
 function dynFor(keys){const loco=keys[0],base=DYN[loco==='btx'?'bzmot':loco]||DYN.metro;if(loco==='metro')return base;
-  const m=k=>k==='v43'?80:k==='m41'?66:k==='m44'?68:k==='bzmot'?22:k==='btx'?16:k==='bhv'?40:k.startsWith('zaes')?70:k.startsWith('eas')?65:k==='gbs1'?40:40;
-  const ref={v43:240,m41:186,m44:450,bzmot:38}[loco]||200,mass=keys.reduce((a,k)=>a+m(k),0),powered=keys.filter(k=>k==='bzmot').length||1;
+  const m=k=>k==='v43'?80:k==='m41'?66:k==='m44'?68:k==='bzmot'?22:k==='btx'?16:k==='bhv'?40:k==='eu'?85:k==='m424'?86:k==='br52'?84:k.endsWith('_t')?55:['tep','tep2','mavg','g10'].includes(k)?30:['sovo','mavo','om'].includes(k)?34:k.startsWith('zaes')?70:k.startsWith('eas')?65:k==='gbs1'?40:40;
+  const ref={v43:240,m41:186,m44:450,bzmot:38,eu:445,m424:510,br52:592}[loco]||200,mass=keys.reduce((a,k)=>a+m(k),0),powered=keys.filter(k=>k==='bzmot').length||1;
   return Object.assign({},base,{acc:base.acc*clamp(ref*(loco==='bzmot'?powered/1:1)/mass,.45,1.6)})}
 
 /* ---------- ikonok a menühöz ---------- */
@@ -708,9 +723,10 @@ const ICO={
  share:'<circle cx="6" cy="12" r="2.4"/><circle cx="18" cy="6" r="2.4"/><circle cx="18" cy="18" r="2.4"/><path d="M8.2 11l7.6-3.9M8.2 13l7.6 3.9" fill="none"/>',
  code:'<rect x="3.5" y="6" width="17" height="12" rx="2"/><path d="M7 10h2M11 10h2M15 10h2M7 14h10" fill="none"/>',
  upd:'<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4v4h-4" fill="none"/>',
- quit:'<path d="M14 4h4.5v16H14M10.5 8.5 7 12l3.5 3.5M7 12h9" fill="none"/>'};
+ quit:'<path d="M14 4h4.5v16H14M10.5 8.5 7 12l3.5 3.5M7 12h9" fill="none"/>',
+ hist:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2M3.5 12H2M22 12h-1.5" fill="none"/>'};
 const ico=k=>`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICO[k]}</svg>`;
-const pickLabel=r=>{const p=pickFor(r),k=routeKind(r);if(k==='metro')return'81-717 · 5 kocsi';return VINFO[p.veh].n+(p.veh==='bzmot'?` · ${p.n} egység`:` + ${p.n} ${k==='freight'?'teherkocsi':'kocsi'}`)};
+const pickLabel=r=>{const p=pickFor(r),k=routeKind(r);if(k==='metro')return'81-717 · 5 kocsi';return VINFO[p.veh].n+(p.veh==='bzmot'?` · ${p.n} egység`:` + ${p.n} ${k==='freight'||k==='ww2'?'teherkocsi':'kocsi'}`)};
 
 /* ---------- járművek oldal: lapozható, élő kép, hangpróba ---------- */
 let GAR=null;
@@ -740,13 +756,13 @@ function garGo(d){if(!GAR)return;GAR.i=(GAR.i+d+VORDER.length)%VORDER.length;GAR
 function garPick(){const v=VORDER[GAR.i];cfg.pick=Object.assign({np:4,nf:7,nb:2},cfg.pick||{},{veh:v});
   if(!vehFits(v,ROUTES[cfg.route])){const i=ROUTES.findIndex(r=>vehFits(v,r));if(i>=0)cfg.route=i}saveCfg()}
 function garN(d){const v=VORDER[GAR.i],r=ROUTES[cfg.route],k=routeKind(r);if(k==='metro')return;cfg.pick=Object.assign({np:4,nf:7,nb:2},cfg.pick||{},{veh:v});
-  const key=v==='bzmot'?'nb':k==='freight'?'nf':'np',rg=v==='bzmot'?NRANGE.bz:NRANGE[k];cfg.pick[key]=clamp((cfg.pick[key]||pickFor(r).n)+d,rg[0],rg[1]);saveCfg();garFill()}
+  const key=v==='bzmot'?'nb':k==='freight'?'nf':k==='ww2'?'nw':'np',rg=v==='bzmot'?NRANGE.bz:NRANGE[k];cfg.pick[key]=clamp((cfg.pick[key]||pickFor(r).n)+d,rg[0],rg[1]);saveCfg();garFill()}
 function garFill(){const v=VORDER[GAR.i],I=VINFO[v],r=ROUTES[cfg.route],k=routeKind(r),p=pickFor(r);
   if(!cfg.pick||cfg.pick.veh!==v)garPick();
   $('gName').textContent=I.n;$('gSub').textContent=I.sub;$('gDesc').textContent=I.d;$('gSpec').innerHTML=I.sp.map(([a,b])=>`<dt>${a}</dt><dd>${b}</dd>`).join('');
   $('gDots').querySelectorAll('i').forEach((d,i)=>d.classList.toggle('on',i===GAR.i));
   const keys=consistKeys(r);let L=0;for(const kk of keys)L+=veh(kk).L+.12;
-  $('gNl').textContent=v==='bzmot'?'Egységek':k==='freight'?'Teherkocsik':k==='metro'?'Kocsik':'Személykocsik';$('gN').textContent=k==='metro'?5:pickFor(r).n;
+  $('gNl').textContent=v==='bzmot'?'Egységek':k==='freight'||k==='ww2'?'Teherkocsik':k==='metro'?'Kocsik':'Személykocsik';$('gN').textContent=k==='metro'?5:pickFor(r).n;
   $('gLen').textContent=`${Math.round(L)} m · ${keys.length} jármű`;$('gM').disabled=$('gP').disabled=k==='metro';
   const list=ROUTES.map((rr,i)=>vehFits(v,rr)?`<button data-i="${i}" class="${i===cfg.route?'sel':''}"><b>${rr.n}</b><span>${routeLen(rr)} megálló · ${Math.round(routeKm(rr))} km${rr.long?' · hosszú':''}</span></button>`:'').join('');
   $('gR').innerHTML=list;$('gR').querySelectorAll('button').forEach(b=>b.onclick=()=>{cfg.route=+b.dataset.i;saveCfg();garFill()});
@@ -786,6 +802,140 @@ function enginePreview(v){aInit();aInitRail();const C=A.ctx,t=C.currentTime,r=(p
   r(A.rtG.gain,0,v==='m41'?.1:.015,0,1);A.rtG.gain.linearRampToValueAtTime(0,t+3.2);if(v==='bzmot')setTimeout(sGear,1500);
   setTimeout(()=>{for(const p of[A.dzG.gain,A.exG.gain,A.rtG.gain,A.dzF.frequency,A.dz1.frequency,A.dz2.frequency,A.dzL.frequency,A.rtL.frequency,A.tfG.gain,A.m1.frequency,A.motG.gain])tpLast.delete(p)},3600)}
 
+
+/* ==================== II. világháború: gőzmozdonyok, korabeli kocsik ==================== */
+// küllős kerék ellensúllyal (gőzmozdony)
+function vSpoke(g,x,y,r,col){g.beginPath();g.arc(x,y,r,0,7);g.fillStyle='#161718';g.fill();
+  g.beginPath();g.arc(x,y,r*.88,0,7);g.fillStyle=col;g.fill();g.strokeStyle='#161718';g.lineWidth=.03;g.stroke();
+  g.beginPath();g.arc(x,y,r*.74,0,7);g.fillStyle='#1d1e20';g.fill();
+  g.strokeStyle=col;g.lineWidth=Math.max(.035,r*.07);const n=r>.5?16:10;g.beginPath();for(let i=0;i<n;i++){const a=i/n*6.283;g.moveTo(x+Math.cos(a)*r*.2,y+Math.sin(a)*r*.2);g.lineTo(x+Math.cos(a)*r*.76,y+Math.sin(a)*r*.76)}g.stroke();
+  if(r>.5){g.fillStyle=col;g.beginPath();g.arc(x,y,r*.74,2.2,3.9);g.lineTo(x,y);g.fill()}
+  g.beginPath();g.arc(x,y,r*.2,0,7);g.fillStyle=col;g.fill();g.strokeStyle='#161718';g.lineWidth=.02;g.stroke();
+  g.strokeStyle='rgba(255,255,255,.18)';g.lineWidth=.02;g.beginPath();g.arc(x,y,r*.95,3.7,5.4);g.stroke()}
+// általános gőzmozdony oldalnézetben; a hajtórudakat futás közben rajzoljuk rá (drawRods)
+function drawSteam(o){const L=o.L,H=o.H,[c,g]=vCanvas(L,H),rand=srand(o.seed),blk=o.col||'#1f2022',red=o.wc||'#8e2a1d',bc=o.by,br=o.br;
+  // keret, ütközőgerenda
+  g.fillStyle=red;g.fillRect(.5,H-1.32,L-1.0,.26);g.strokeStyle=VOUT;g.lineWidth=.03;g.strokeRect(.5,H-1.32,L-1.0,.26);
+  for(const[xe,d]of[[0,-1],[L,1]])vBuffers(g,xe,d,H,red);
+  // keretlemez és tűzszekrény a kazán alatt (a kerekek mögött)
+  g.fillStyle=vg(g,H-bc+br-.1,H-1.06,[[0,'#202123'],[1,'#121314']]);g.fillRect(o.cabX0+.2,H-bc+br-.1,o.boilerEnd-o.cabX0,bc-br-.95);g.fillStyle='#2a1a12';g.fillRect(o.cabX1-.2,H-bc+br-.1,1.4,.5);
+  // kerekek: futó, kapcsolt, támasz
+  for(const x of o.lead||[])vSpoke(g,x,H-o.lr,o.lr,red);
+  for(const x of o.drive)vSpoke(g,x,H-o.dr,o.dr,red);
+  for(const x of o.trail||[])vSpoke(g,x,H-o.lr,o.lr,red);
+  // henger a mozdony elején, csúszópálya
+  const cx=o.cyl;g.fillStyle=vg(g,H-1.75,H-.95,[[0,'#3a3c3f'],[.5,'#26282a'],[1,'#141516']]);vrr(g,cx-.65,H-1.75,1.3,.78,.12);g.fill();g.strokeStyle=VOUT;g.lineWidth=.03;g.stroke();vBolts(g,cx-.55,cx+.55,H-1.7,.12);vBolts(g,cx-.55,cx+.55,H-1.02,.12);
+  g.fillStyle='#55585b';g.fillRect(cx-.65-1.6*(o.dir||1)*0,H-1.32,.06,.1);g.fillStyle='#4a4d50';g.fillRect(o.drive[o.drive.length-1]+.2,H-o.dr-.06,cx-.65-(o.drive[o.drive.length-1]+.2),.07);
+  // futólemez, a kazán alatt piros szegéllyel
+  g.fillStyle='#2a2b2d';g.fillRect(o.cabX0-.2,H-1.62,cx+.7-o.cabX0+.2,.08);g.fillStyle=red;g.fillRect(o.cabX0-.2,H-1.56,cx+.7-o.cabX0+.2,.1);
+  // kazán: hengeres árnyékolás, abroncsok, kapaszkodó
+  const bx0=o.cabX1-.1,bx1=o.boilerEnd,by0=H-bc-br,by1=H-bc+br;
+  g.fillStyle=vg(g,by0,by1,[[0,shade(blk,.28)],[.25,shade(blk,.12)],[.55,blk],[1,shade(blk,-.45)]]);vrr(g,bx0,by0,bx1-bx0,by1-by0,br*.15);g.fill();g.strokeStyle=VOUT;g.lineWidth=.035;g.stroke();
+  for(let x=bx0+1;x<bx1-.6;x+=1.15){g.fillStyle='rgba(200,200,190,.35)';g.fillRect(x,by0,.04,by1-by0)}
+  g.strokeStyle='#9a9c9a';g.lineWidth=.025;g.beginPath();g.moveTo(bx0+.2,by0+br*.45);g.lineTo(bx1-.3,by0+br*.45);g.stroke();
+  // füstszekrény (elöl), ajtó gyűrűvel
+  g.fillStyle=vg(g,by0-.05,by1+.05,[[0,'#3a3b3d'],[.5,'#202122'],[1,'#0f1011']]);vrr(g,bx1,by0-.04,o.smokeL,by1-by0+.08,.08);g.fill();g.stroke();
+  g.fillStyle='#2a2b2d';vrr(g,bx1+o.smokeL-.06,by0+.02,.14,by1-by0-.04,.06);g.fill();g.stroke();
+  // kémény, dómok, biztonsági szelep, síp
+  const ch=o.chimney;g.fillStyle=vg(g,by0-o.chH,by0,[[0,'#3c3d3f'],[1,'#141516']]);g.beginPath();g.moveTo(ch-.26,by0+.02);g.lineTo(ch-.2,by0-o.chH);g.lineTo(ch-.28,by0-o.chH-.08);g.lineTo(ch+.28,by0-o.chH-.08);g.lineTo(ch+.2,by0-o.chH);g.lineTo(ch+.26,by0+.02);g.closePath();g.fill();g.stroke();
+  for(const[dx,w,h]of o.domes){g.fillStyle=vg(g,by0-h,by0,[[0,shade(blk,.3)],[1,shade(blk,-.2)]]);g.beginPath();g.moveTo(dx-w/2,by0+.03);g.quadraticCurveTo(dx-w/2,by0-h,dx,by0-h);g.quadraticCurveTo(dx+w/2,by0-h,dx+w/2,by0+.03);g.closePath();g.fill();g.stroke()}
+  g.fillStyle='#c8a64a';g.fillRect(o.cabX1+.25,by0-.32,.08,.3);g.beginPath();g.ellipse(o.cabX1+.29,by0-.34,.07,.04,0,0,7);g.fill();
+  g.fillStyle='#b89a40';g.fillRect(o.domes[0][0]+.2,by0-o.domes[0][2]-.18,.06,.2);
+  // füstterelő lemezek
+  if(o.defl){g.fillStyle=vg(g,by0-.3,H-1.6,[[0,'#2c2d2f'],[1,'#151617']]);g.beginPath();g.moveTo(bx1+o.smokeL-.1,by0-.3);g.lineTo(bx1-.1,by0-.3);g.lineTo(bx1-.35,by0+.4);g.lineTo(bx1-.35,H-1.62);g.lineTo(bx1+o.smokeL-.1,H-1.62);g.closePath();g.fill();g.strokeStyle=VOUT;g.lineWidth=.03;g.stroke();g.strokeStyle='rgba(255,255,255,.12)';g.beginPath();g.moveTo(bx1-.25,by0-.2);g.lineTo(bx1+o.smokeL-.2,by0-.2);g.stroke()}
+  // légszivattyú (MÁV), tápvízelőmelegítő
+  if(o.pump){g.fillStyle='#2a2b2d';vrr(g,o.pump,by1-.1,.38,.75,.1);g.fill();g.stroke();vBolts(g,o.pump+.05,o.pump+.33,by1+.05,.1)}
+  // vezetőfülke
+  g.fillStyle=vg(g,H-o.cabTop,H-1.5,[[0,shade(blk,.2)],[1,shade(blk,-.3)]]);g.beginPath();g.moveTo(o.cabX0,H-1.5);g.lineTo(o.cabX0,H-o.cabTop+.25);g.quadraticCurveTo(o.cabX0,H-o.cabTop,o.cabX0+.35,H-o.cabTop-.05);g.lineTo(o.cabX1-.1,H-o.cabTop-.05);g.quadraticCurveTo(o.cabX1+.05,H-o.cabTop,o.cabX1+.05,H-o.cabTop+.3);g.lineTo(o.cabX1+.05,H-1.5);g.closePath();g.fill();g.strokeStyle=VOUT;g.lineWidth=.04;g.stroke();
+  vWin(g,o.cabX0+.3,H-o.cabTop+.35,.62,.62,o.roundWin?.3:.06,false);if(o.cabX1-o.cabX0>2.2)vWin(g,o.cabX0+1.1,H-o.cabTop+.35,.52,.62,.06,false);
+  g.fillStyle='#8a8e90';g.fillRect(o.cabX0-.05,H-o.cabTop-.1,o.cabX1-o.cabX0+.15,.06);
+  vHandrail(g,o.cabX0+.05,H-o.cabTop+.9,H-1.5);vSteps(g,o.cabX0-.1,.4,H-1.45,2);
+  if(o.plate)vPlate(g,o.cabX0+.3,H-o.cabTop+1.15,Math.min(1.5,o.cabX1-o.cabX0-.5),.28,o.plate,o.plateBg||'#1a1a1a',o.plateFg||'#d9c78a');
+  // lámpák
+  for(const[lx,ly]of o.lamps)vLamp(g,lx,H-ly,1,.12,'#e8e4d0');
+  if(o.star)vText(g,'★',bx1+o.smokeL*.5,by0+br*.95,.28,'#c8281e','center',700);
+  vWeather(g,rand,L,H,.85,.3,L-.3,0,H);
+  g.save();g.globalCompositeOperation='source-atop';const sg=g.createLinearGradient(0,by0-o.chH,0,by0+.6);sg.addColorStop(0,'rgba(15,12,10,.6)');sg.addColorStop(1,'rgba(15,12,10,0)');g.fillStyle=sg;g.fillRect(bx0,by0-o.chH-.2,bx1-bx0+o.smokeL,.9+o.chH);g.restore();
+  return{key:o.key,L,H,cv:c,pax:false,wheels:[...(o.lead||[]),...o.drive,...(o.trail||[])],headH:o.lamps[0][1],headX:.3,tail:[1.1],tailX:.3,snd:'steam',exh:[ch,H-(H-by0+o.chH)+(H-by0+o.chH)],
+    steam:{drive:o.drive,dr:o.dr,cyl:cx,cylY:H-1.36,crank:o.dr*.42,red},chimTop:H-by0+o.chH+.05,cabX:(o.cabX0+o.cabX1)/2,cabH:o.cabTop-1}}
+function drawTender(o){const L=o.L,H=o.H,[c,g]=vCanvas(L,H),rand=srand(o.seed),blk=o.col||'#1f2022',red=o.wc||'#8e2a1d',top=H-o.h,bot=H-1.25;
+  if(o.bogies)for(const x of o.bogies)vBogie(g,x,1.6,.46,H,'freight');else for(const x of o.axles){vSpoke(g,x,H-.47,.47,red);g.fillStyle='#202325';g.fillRect(x-.55,H-1.05,1.1,.18)}
+  g.fillStyle=red;g.fillRect(.4,bot-.06,L-.8,.26);for(const[xe,d]of[[0,-1],[L,1]])vBuffers(g,xe,d,H,red);
+  if(o.coal){g.fillStyle='#121314';g.beginPath();g.moveTo(.6,top+.1);for(let x=.6;x<=L*.62;x+=.18)g.lineTo(x,top-.15-Math.sin(x*2.3)*.1-rand()*.12);g.lineTo(L*.62,top+.1);g.fill();g.fillStyle='rgba(255,255,255,.18)';for(let i=0;i<50;i++)g.fillRect(.7+rand()*(L*.6),top-.2+rand()*.15,.04,.02)}
+  if(o.tub){g.fillStyle=vg(g,top,bot,[[0,shade(blk,.25)],[.5,blk],[1,shade(blk,-.4)]]);vrr(g,.5,top,L-1,bot-top,(bot-top)*.45);g.fill();g.strokeStyle=VOUT;g.lineWidth=.035;g.stroke()}
+  else{vrr(g,.5,top,L-1,bot-top,.06);vPaint(g,blk,top,bot,.035);g.fillStyle=shade(blk,.15);g.fillRect(.5,top,L-1,.08);for(let x=1;x<L-.6;x+=1.1)vSeam(g,x,top+.1,bot-.05);vRivets(g,.7,L-.7,top+.2,.2)}
+  g.fillStyle='#2a2b2d';vrr(g,L*.72,top-.18,.6,.2,.05);g.fill();g.strokeStyle='#5a5e60';g.lineWidth=.025;g.beginPath();for(let y=top;y<bot;y+=.22){g.moveTo(.6,y);g.lineTo(.9,y)}g.moveTo(.6,top);g.lineTo(.6,bot);g.moveTo(.9,top);g.lineTo(.9,bot);g.stroke();
+  if(o.text)vText(g,o.text,L/2,(top+bot)/2+.15,.26,o.textCol||'#d9c78a','center',700);
+  vWeather(g,rand,L,H,.9,.3,L-.3,top-.3,H);
+  return{key:o.key,L,H,cv:c,pax:false,wheels:o.bogies?o.bogies.flatMap(x=>[x-.8,x+.8]):o.axles,tail:[1.1],tailX:.2}}
+// Эу (Eu) 0-5-0 = 0-10-0, „Ее/Эу” szovjet tehermozdony
+function drawEu(){return drawSteam({key:'eu',seed:708,L:11.6,H:5.0,by:2.95,br:.82,cabX0:.55,cabX1:3.0,cabTop:4.45,boilerEnd:9.7,smokeL:1.15,chimney:9.95,chH:.75,domes:[[7.0,.9,.42],[5.0,.8,.32]],
+  drive:[3.6,4.95,6.3,7.65,9.0],dr:.66,cyl:10.15,lamps:[[11.0,3.95],[10.95,1.55]],plate:'Эу 708-64',star:true,col:'#1d1f1e',wc:'#8e2a1d'})}
+function drawEuT(){return drawTender({key:'eu_t',seed:709,L:8.4,H:3.6,h:2.95,axles:null,bogies:[1.9,6.5],coal:true,text:'Эу 708-64',col:'#1d1f1e'})}
+// MÁV 424 „Bivaly”, 2'D, füstterelővel, légszivattyúval
+function draw424(){return drawSteam({key:'m424',seed:424,L:13.6,H:5.0,by:2.9,br:.86,cabX0:.5,cabX1:3.15,cabTop:4.45,boilerEnd:11.3,smokeL:1.3,chimney:11.75,chH:.62,domes:[[7.6,.95,.4],[5.6,.85,.3]],
+  lead:[11.5,12.75],lr:.5,drive:[3.75,5.4,7.05,8.7],dr:.8,cyl:10.6,defl:true,pump:9.6,lamps:[[13.05,4.0],[13.0,1.62]],plate:'424.009',plateBg:'#121212',plateFg:'#e8d9a8',col:'#1c1d1f',wc:'#8e2a1d'})}
+function draw424T(){return drawTender({key:'m424_t',seed:425,L:8.8,H:3.65,h:3.0,bogies:[2.0,6.8],coal:true,text:'MÁV',col:'#1c1d1f'})}
+// DR 52 „Kriegslok”, 1'E, egyszerűsített háborús kivitel, kádas szerkocsi
+function drawBR52(){return drawSteam({key:'br52',seed:52,L:13.4,H:5.0,by:2.95,br:.8,cabX0:.45,cabX1:3.0,cabTop:4.5,boilerEnd:11.2,smokeL:1.25,chimney:11.6,chH:.55,domes:[[7.4,.85,.32],[5.4,.8,.28]],
+  lead:[12.4],lr:.43,drive:[3.55,4.95,6.35,7.75,9.15],dr:.7,cyl:10.6,defl:true,lamps:[[12.95,1.62],[12.9,4.0]],plate:'52 1937',col:'#1b1c1e',wc:'#8e2a1d'})}
+function drawBR52T(){return drawTender({key:'br52_t',seed:53,L:9.0,H:3.7,h:3.05,bogies:[2.0,7.0],coal:true,tub:true,text:'DR',col:'#1b1c1e'})}
+// korabeli kéttengelyes kocsik: szovjet „tyepluska”, nyitott kocsi, német G 10, MÁV G
+function drawWagon(o){const L=o.L,H=4.0,[c,g]=vCanvas(L,H),rand=srand(o.seed),col=o.col,bot=H-1.22,top=H-(o.open?2.55:3.55);
+  for(const x of[L*.27,L*.73])vAxle(g,x,.47,H);
+  g.fillStyle='#1f2224';g.fillRect(.45,bot-.05,L-.9,.3);for(const[xe,d]of[[0,-1],[L,1]])vBuffers(g,xe,d,H,'#26292b');
+  if(o.load==='coal'){g.fillStyle='#161617';g.beginPath();g.moveTo(.6,top+.05);for(let x=.6;x<=L-.6;x+=.25)g.lineTo(x,top-.12-Math.sin(x*1.9)*.07-rand()*.08);g.lineTo(L-.6,top+.05);g.fill()}
+  if(o.load==='sacks'){for(let i=0;i<Math.floor((L-1.4)/.62);i++){const x=.8+i*.62;g.fillStyle=i%2?'#c9b88a':'#b8a678';vrr(g,x,top-.32,.58,.36,.12);g.fill();g.strokeStyle='rgba(0,0,0,.35)';g.lineWidth=.02;g.stroke()}}
+  if(!o.open){g.beginPath();g.moveTo(.55,top+.02);g.quadraticCurveTo(L/2,top-.38,L-.55,top+.02);g.closePath();vPaint(g,'#5a5d5f',top-.3,top)}
+  vrr(g,.55,top,L-1.1,bot-top,.04);vPaint(g,col,top,bot,.045);
+  for(let x=.75;x<L-.55;x+=.16){g.fillStyle='rgba(0,0,0,.14)';g.fillRect(x,top+.05,.012,bot-top-.1)}
+  for(const x of[.9,L-.9,L/2-1.05,L/2+1.05]){g.fillStyle=shade(col,-.3);g.fillRect(x-.05,top,.1,bot-top)}
+  g.strokeStyle=shade(col,-.3);g.lineWidth=.06;g.beginPath();g.moveTo(.9,bot-.1);g.lineTo(L/2-1.05,top+.1);g.moveTo(L-.9,bot-.1);g.lineTo(L/2+1.05,top+.1);g.stroke();
+  if(!o.open){vrr(g,L/2-1,top+.1,2,bot-top-.18,.03);g.fillStyle=shade(col,-.08);g.fill();g.strokeStyle=VOUT;g.lineWidth=.035;g.stroke();g.fillStyle='#2a2d2f';g.fillRect(L/2-1.25,top+.05,2.5,.07);
+    for(const x of[1.3,L-1.9]){vrr(g,x,top+.25,.6,.32,.03);g.fillStyle='#2a1c14';g.fill();g.stroke()}}
+  if(o.stove){g.fillStyle='#2a2b2d';g.fillRect(L*.66,top-.75,.12,.6);g.fillStyle='#151617';g.fillRect(L*.66-.04,top-.8,.2,.07)}
+  if(o.text)vText(g,o.text,o.open?L*.28:1.6,bot-.45,.17,o.tcol||'#e8e0c8','center',600);
+  if(o.chalk)vText(g,o.chalk,L*.7,top+.55,.2,'rgba(240,236,220,.85)','center',600);
+  vWeather(g,rand,L,H,1.1,.3,L-.3,top-.4,bot+.4);
+  return{key:o.key,L,H,cv:c,pax:false,wheels:[L*.27,L*.73],tail:[1.1],tailX:.2}}
+Object.assign(VEHB,{eu:drawEu,eu_t:drawEuT,m424:draw424,m424_t:draw424T,br52:drawBR52,br52_t:drawBR52T,
+  tep:()=>drawWagon({key:'tep',seed:61,L:7.6,col:'#6a3524',stove:true,text:'НКПС',chalk:'Ленинграду!'}),
+  tep2:()=>drawWagon({key:'tep2',seed:62,L:7.6,col:'#5e3020',stove:true,text:'НКПС'}),
+  sovo:()=>drawWagon({key:'sovo',seed:63,L:7.4,col:'#5c3a28',open:true,load:'sacks',text:'НКПС'}),
+  mavg:()=>drawWagon({key:'mavg',seed:64,L:8.6,col:'#5f4636',text:'MÁV G'}),
+  mavo:()=>drawWagon({key:'mavo',seed:65,L:8.4,col:'#4f3f33',open:true,load:'coal',text:'MÁV O'}),
+  g10:()=>drawWagon({key:'g10',seed:66,L:9.1,col:'#4d3a2e',text:'DR G'}),
+  om:()=>drawWagon({key:'om',seed:67,L:9.0,col:'#454240',open:true,load:'coal',text:'DR Om'})});
+Object.assign(DYN,{eu:{acc:.42,brk:.58,vb:.9,cap:17,drag:.25,pv:6},m424:{acc:.48,brk:.6,vb:1,cap:25.5,drag:.2,pv:9},br52:{acc:.42,brk:.56,vb:.9,cap:23,drag:.22,pv:7}});
+Object.assign(VNAME,{eu:'Эу 708-64',m424:'MÁV 424 „Bivaly”',br52:'DR 52 „Kriegslok”'});
+Object.assign(VINFO,{
+ eu:{n:'Эу (Eu) 708-64',sub:'szovjet 0-10-0 gőzmozdony',era:'W1',d:'Ez a volhovi mozdony vitte az első vonatot élelemmel és lőszerrel az ostromlott Leningrádba: 1943. február 7-én érkezett a Finlyandszkij pályaudvarra. Ma emlékműként áll Volhovban.',
+   sp:[['Típus','Э sorozat, 0-5-0 (0-10-0)'],['Hajtás','gőz, szénfűtés'],['Rakomány','élelem, lőszer'],['Sebesség a játékban','60 km/h']],kinds:['ww2']},
+ m424:{n:'MÁV 424 „Bivaly”',sub:'magyar 2′D gőzmozdony',d:'A MÁVAG gyártotta 1924 és 1958 között, 514 példány épült, ebből 365 a MÁV-é. Univerzális fővonali gép; becenevei a Bivaly és a Nurmi (Paavo Nurmi futóról). Legnagyobb sebessége 90 km/h.',
+   sp:[['Tengelyelrendezés','2′D (4-8-0)'],['Gyártó','MÁVAG, 1924–1958'],['Darabszám','514'],['Sebesség','90 km/h']],kinds:['ww2']},
+ br52:{n:'DR 52 „Kriegslok”',sub:'német háborús 1′E gőzmozdony',d:'A Deutsche Reichsbahn egyszerűsített háborús tehermozdonya a 50-es sorozat alapján. Az első 1942. szeptember 12-én a Borsig gyárban gőzölt fel. 1942 és 1945 között Európa-szerte több ezer készült belőle.',
+   sp:[['Tengelyelrendezés','1′E (2-10-0)'],['Első példány','1942. szept. 12., Borsig'],['Hajtás','gőz, szénfűtés'],['Sebesség','80 km/h']],kinds:['ww2']}});
+VORDER.push('eu','m424','br52');
+/* ---------- a három történelmi pálya ---------- */
+Object.assign(LINES,{
+ W1:{c:'#8a2a20',lbl:'1943',ink:'#fff',st:[['Poljani',33000,'',1],['Slisszelburg',0,'',1]]},
+ W2:{c:'#5a6a7a',lbl:'1944',ink:'#fff',st:[['Ferencváros rendező',4500,'',1],['Kelenföld',6000,'',1],['Budaörs',0,'',1]]},
+ W3:{c:'#3a5a3a',lbl:'1943',ink:'#fff',st:[['Szmalyavicsi',14000,'',1],['Zsodzina',22000,'',1],['Barisau',0,'',1]]}});
+const WW2=[
+ {id:'W1',year:1943,date:'1943-02-07',hour:5.4,n:'Győzelem útja – Leningrád',seq:[['W1',0,1]],d:'Poljani → Slisszelburg, a „halál folyosója”',veh:'eu',cars:10,wag:['tep','sovo','tep2','sovo'],scen:'len',vmax:60,sea:'tél',place:'Leningrádi terület, Szovjetunió',
+  hist:['1943. január 18-án a szovjet csapatok áttörték Leningrád blokádját. A Poljani és Slisszelburg között visszafoglalt keskeny sávban 33 km-es ideiglenes vasútvonal épült, a források szerint 17–20 nap alatt.','Az első vonatot az Эу 708-64 mozdony vitte Volhovsztrojból; 1943. február 7-én érkezett a leningrádi Finlyandszkij pályaudvarra élelemmel és lőszerrel.','A vonal mintegy 8 km-e a frontzónában, ellenséges megfigyelés alatt futott, ezért „a halál folyosójának” nevezték. Később éjszakánként akár 32 vonat járt rajta; 1943-ban kb. 4,4 millió tonna rakomány jutott így a városba.'],
+  game:'A játékban a Poljani–Slisszelburg szakaszt vezeted hajnali sötétben, elsötétített lámpákkal. A frontzónában tüzérségi becsapódások vannak; ha lassítasz vagy megállsz, a tűz pontosabb lesz. A becsapódások helye és gyakorisága szemléltető.',
+  src:[['PGUPS: 74 éve indult a Győzelem útja','https://www.pgups.ru/en/news/eng-daty/74-years-ago-launched-the-victory-road/'],['Szentpétervári enciklopédia','https://encspb.ru/object/2805381791?lc=en'],['Military Review: a remény szerelvényei','https://military-review.com/12504019-echelons-of-hope'],['Az Эу 708-64 emlékmozdony','https://en.panevin.ru/photo/volhov/perviy_parovoz_dostavivshiy_v_blokadniy.html']]},
+ {id:'W2',year:1944,date:'1944-04-03',hour:10.5,n:'Bombázás – Budapest, Ferencváros',seq:[['W2',0,2]],d:'Ferencváros rendező → Kelenföld → Budaörs, a Déli összekötő hídon át',veh:'m424',cars:12,wag:['mavg','mavo','mavg','mavg','mavo'],scen:'bud',vmax:60,sea:'tavasz',place:'Budapest, Magyarország',
+  hist:['1944. április 3-án az amerikai 15. légi hadsereg B-17-es és B-24-es bombázói nappali támadást intéztek Budapest vasúti céljai és ipari negyedei ellen; egy összesítés szerint kb. 1100 tonna bombát dobtak le, erős vadászelhárítás mellett.','A 449. bombázócsoport aznapi bevetési jelentése szerint a cél a budapesti fő rendező pályaudvar volt, amelyet az előttük támadó csoportok bombáinak füstje már eltakart. Korabeli fénykép örökíti meg a ferencvárosi pályaudvar fölötti füstfelhőt a Déli összekötő vasúti híd környékén.','Éjjel brit Liberatorok és Wellingtonok támadtak.'],
+  game:'A játékban a MÁV 424-es tehervonatával kell kijutnod a rendezőből a Déli összekötő vasúti hídon át Kelenföld felé, miközben szól a légiriadó, és hullámokban érkeznek a bombázók. A becsapódások helye és az időzítés szemléltető.',
+  src:[['ww2-weapons: 1944. április 3. napló','https://ww2-weapons.com/diary-april-3-1944'],['449. bombázócsoport, 39. bevetés','https://449th.com/?p=918'],['Oláh András Pál: Az amerikai légierő Budapest elleni légitámadásai','https://contentas.ek.szte.hu/Record/acta68533'],['Fortepan: Ferencvárosi pályaudvar, 1944','https://gallery.hungaricana.hu/en/Fortepan/1071245']]},
+ {id:'W3',year:1943,date:'1943-08-03',hour:23.2,n:'Sínháború – Belarusz',seq:[['W3',0,2]],d:'Szmalyavicsi → Zsodzina → Barisau (Minszk–Barisau vonal)',veh:'br52',cars:14,wag:['g10','om','g10','g10','om'],scen:'blr',vmax:70,sea:'nyár',place:'Belarusz, megszállt Szovjetunió',
+  hist:['1943. augusztus 3-án éjjel kezdődött a „Sínháború” (Relszovaja vojna): a belarusz partizánok – a források szerint mintegy 74 000 fő – a megszálló hadsereg vasúti utánpótlását támadták a kurszki csatával összehangolva.','Belarusz levéltári adatok szerint augusztus 3–4. két éjszakáján 36 000 sínt robbantottak fel, szeptember közepéig több mint 121 000-et. A német Középső Hadseregcsoport augusztus 3–4. éjjelére 4100 vasúti robbantást jelentett.','A második szakasz „Koncert” fedőnéven 1943. szeptember 19-től november elejéig tartott.'],
+  game:'A játékban egy DR 52-es tehervonatot vezetsz éjjel a Minszk–Barisau vonalon. Előtted robbanások szakítják meg a pályát: időben meg kell állnod a sínhiány előtt, különben kisiklasz. A pályamunkások kijavítják a sínt; ezt az Időugrással át is ugorhatod. A robbantások helye szemléltető.',
+  src:[['Belarusz Nemzeti Levéltár','https://archives.gov.by/en/news/1024932'],['Belarusz Enciklopédia: Sínháború','https://eng.belarusenc.by/topics/worldwarii/9431'],['Rail War – Wikipédia','https://Www.Wikipedia.org/wiki/Rail_War'],['DR 52 sorozat','https://www.wikiwand.com/en/articles/DRG_BR_52']]}];
+for(const w of WW2)ROUTES.push(Object.assign({ww2:true,freight:true,long:true},w));
+
 function setPlat(rail){
   if(rail){PLAT_H=.55;PLAT_A=Math.max(60,Math.ceil(TRAIN_L+16));PLAT_B=12;ST_A=PLAT_A+14;ESC_DX=Math.round(Math.min(PLAT_A-14,TRAIN_L*.5))}
   else{PLAT_H=1.2;PLAT_A=135;PLAT_B=6;ST_A=145;ESC_DX=123}}
@@ -800,7 +950,7 @@ function sWhistle(){if(!A.ctx)return;for(let k=0;k<2;k++){tone(2950,.3,.08,'sine
 function emitSmoke(dt){const v=CARS[0]&&CARS[0].v;if(!v||!v.exh||!cfg.sparks)return;const rpm=clamp(.25+Math.max(0,S.lever-N0)*.19,0,1);
   if(Math.random()>dt*(2+14*rpm*rpm))return;const x=S.x-CARS[0].off-v.L+v.exh[0];
   S.fx.push({k:'m',x,h:v.exh[1],vx:rnd(-.6,.6),vy:rnd(.8,1.6)+rpm,life:rnd(1.6,2.6),max:2.6,r:.25+rpm*.15,dk:rpm})}
-function drawSmoke(ppm,railY,X){for(const p of S.fx){if(p.k!=='m')continue;const sx=X(p.x),sy=railY-p.h*ppm,a=clamp(p.life/p.max,0,1);if(sx<-60||sx>W+60)continue;
+function drawSmoke(ppm,railY,X){for(const p of S.fx){if(p.k==='d'){const sx=X(p.x),sy=railY-(p.back?1.5:-1.5)*ppm-p.h*ppm,z=Math.max(2,.16*ppm);ctx.fillStyle='rgba(66,52,38,.9)';ctx.fillRect(sx-z/2,sy-z/2,z,z);continue}if(p.k!=='m')continue;const sx=X(p.x),sy=railY-p.h*ppm,a=clamp(p.life/p.max,0,1);if(sx<-60||sx>W+60)continue;
   const c=Math.round(70-40*p.dk);ctx.fillStyle=`rgba(${c},${c},${c+4},${a*.32})`;ctx.beginPath();ctx.arc(sx,sy,p.r*ppm,0,7);ctx.fill()}}
 function drawThumb(cv,id){try{const keys=Array.isArray(id)?id.slice(0,4):CONSISTS[id].slice(0,id==='m44'?4:3);let tl=0;const list=keys.map(k=>{const v=veh(k),o={v,off:tl};tl+=v.L+.12;return o});
   const w=cv.clientWidth||160,h=cv.clientHeight||34,dp=Math.min(2,window.devicePixelRatio||1);cv.width=Math.round(w*dp);cv.height=Math.round(h*dp);const g=cv.getContext('2d');g.scale(dp,dp);
@@ -828,7 +978,7 @@ function buildRoute(ri,short){
   const vmax=r.vmax||80,arr=[0],dep=[rail?45:35];
   for(let k=1;k<st.length;k++){const d=P[k]-P[k-1];
     if(rail){const dy=dyn,ac=.62*dy.acc,bc=.5*dy.brk,vc=Math.min(vmax/3.6*.95,Math.sqrt(2*d*ac*bc/(ac+bc)));
-      arr[k]=dep[k-1]+round5((d/vc+vc/(2*ac)+vc/(2*bc))+(d>1400?15:0)+20);dep[k]=arr[k]+(r.freight?30:st[k].b>1.2?45:35)}
+      arr[k]=dep[k-1]+round5((d/vc+vc/(2*ac)+vc/(2*bc))+(d>1400?15:0)+20+(r.scen==='blr'?(d>9000?150:75):0));dep[k]=arr[k]+(r.freight?30:st[k].b>1.2?45:35)}
     else{arr[k]=dep[k-1]+round5(d/12.5+24);dep[k]=arr[k]+(st[k].b>1.5?35:28)}}
   const zones=[],gaps=[];
   if(rail){for(let k=0;k<st.length-1;k++){const d=P[k+1]-P[k];
@@ -841,7 +991,7 @@ function buildRoute(ri,short){
   }
   gaps.sort((a,b)=>a.a-b.a);
   const RR={name:r.n,st,P,arr,dep,zones,gaps,n:st.length,len:P[P.length-1],rail,veh:ck[0],scen:r.scen,vmax,elec:!!r.elec,freight:!!r.freight,sys:rail?'EVM':'ARS'};
-  RR.dyn=dyn;RR.km0=Math.round(hash(ri*3.7)*900)*100;
+  RR.dyn=dyn;SEA=season(r.sea);if(r.ww2){RR.ww2=true;RR.date=new Date(r.date+'T12:00:00');RR.hour=r.hour;RR.sys='KORL';if(r.scen==='bud'){const d=P[1]-P[0];RR.bridge={a:P[0]+d*.42,b:P[0]+d*.53}}}RR.km0=Math.round(hash(ri*3.7)*900)*100;
   if(rail)buildRailWorld(RR);else buildWorld(RR);return RR;
 }
 function limitAt(x){let L=R.vmax||80;for(const z of R.zones)if(x+15>z.a&&x-TRAIN_L<z.b)L=Math.min(L,z.l);return L}
@@ -851,13 +1001,14 @@ function inGap(s){for(const g of R.gaps){if(g.a>s)return false;if(s<=g.b)return 
 function reset(){
   R=buildRoute(cfg.route,cfg.short);
   const now=new Date();
-  S={started:false,t:0,base:now.getHours()*3600+(now.getMinutes()+1)*60,x:0,v:0,dir:1,lever:N0,aCmd:0,eb:false,
+  S={started:false,t:0,base:R.hour!==undefined?R.hour*3600:now.getHours()*3600+(now.getMinutes()+1)*60,x:0,v:0,dir:1,lever:N0,aCmd:0,eb:false,
     doors:R.freight?0:1,doorState:'open',doorT:0,cur:0,next:1,served:[true],departed:[],log:[],score:0,onboard:R.freight?0:Math.round(R.rail?(R.veh==='bzmot'?rnd(18,36):rnd(70,130)):rnd(90,140)),
     ars:{t:0,act:false,over:false},pax:[],spawned:[],D:[],rk:0,ax:[],shoe:[],fx:[],flash:0,dark:0,endT:null,ended:false,runQ:[],incPlan:[],inc:null,crew:[],str:null,events:[],lockT:0,amb:[],crash:null,car:Array.from({length:NCAR},()=>({y:0,vy:0,a:0,va:0}))};
   for(let i=0;i<DOORL.length;i++)S.D.push({al:0,t:0});
   axles().forEach((o,i)=>S.ax[i]=Math.floor((S.x-o)/JOINT));
   shoes().forEach((o,i)=>S.shoe[i]=inGap(S.x-o));
   spawnStation(0);assignBoard(0);
+  if(R.ww2)warInit();else S.war=null;
   buildProg();buildLever();
 }
 let _ax=null,_sh=null;
@@ -1000,7 +1151,7 @@ function sChime(){[[740,0],[587,.38],[440,.76]].forEach(([f,w])=>{tone(f,1.1,.11
 function sDoor(close){if(R&&R.rail){sFoldDoor(close);return}burst({dur:1.9,f:close?520:460,q:2,vol:.09,at:.25});if(close){tone(62,.22,.45,'sine',1.85);burst({dur:.12,f:300,q:1,vol:.25,when:1.85})}else sPssh(.07)}
 let horn=null;
 function hornOn(vo){if(!A.ctx||horn)return;const C=A.ctx,g=C.createGain();g.gain.value=0;const f=C.createBiquadFilter();f.type='lowpass';f.frequency.value=1500;
-  const o1=C.createOscillator(),o2=C.createOscillator();o1.type=o2.type='sawtooth';const hv=vo||(R&&R.rail?R.veh:'metro'),hf={v43:[294,370],m41:[262,330],m44:[330,392],bzmot:[440,554],metro:[349,415]}[hv]||[262,330];if(S&&!vo){S.hornX=S.x;S.hornT=S.t;for(const p of S.pax)if(p.state==='wait'&&Math.abs(p.x-S.x)<90&&p.d<.35)p.d=Math.min(.55,p.d+.25)}if(hv!=='metro'){o1.type='square'}o1.frequency.value=hf[0];o2.frequency.value=hf[1];o1.connect(f);o2.connect(f);f.connect(g).connect(A.master);o1.start();o2.start();
+  const o1=C.createOscillator(),o2=C.createOscillator();o1.type=o2.type='sawtooth';const hv=vo||(R&&R.rail?R.veh:'metro'),hf={v43:[294,370],m41:[262,330],m44:[330,392],bzmot:[440,554],metro:[349,415],eu:[330,415],m424:[466,587],br52:[392,494]}[hv]||[262,330];if(S&&!vo){S.hornX=S.x;S.hornT=S.t;for(const p of S.pax)if(p.state==='wait'&&Math.abs(p.x-S.x)<90&&p.d<.35)p.d=Math.min(.55,p.d+.25)}if(['eu','m424','br52'].includes(hv)){o1.type=o2.type='triangle';f.frequency.value=3200}else if(hv!=='metro'){o1.type='square'}o1.frequency.value=hf[0];o2.frequency.value=hf[1];o1.connect(f);o2.connect(f);f.connect(g).connect(A.master);o1.start();o2.start();
   g.gain.setTargetAtTime(.13,C.currentTime,.03);horn={g,o1,o2}}
 function hornOff(){if(!horn)return;const h=horn;horn=null;h.g.gain.setTargetAtTime(0,A.ctx.currentTime,.05);setTimeout(()=>{h.o1.stop();h.o2.stop()},300)}
 function speak(t,noChime){
@@ -1022,6 +1173,7 @@ function audioUpdate(ebOn){
   const tr=Math.max(0,S.aCmd)/1.25,snd=R.rail?CARS[0].v.snd:'metro';tp(A.ambG.gain,R.rail?.03:.09,.5);
   if(snd==='diesel'){const rpm=clamp(.25+Math.max(0,S.lever-N0)*.19,0,1),f=22+rpm*30;
     tp(A.m1.frequency,f,.25);tp(A.m2.frequency,f*1.5,.25);tp(A.motF.frequency,140+rpm*240,.25);tp(A.motG.gain,.05+rpm*.11,.3);tp(A.m3.frequency,f/2,.25);tp(A.humG.gain,.07+rpm*.05,.3)}
+  else if(snd==='steam'){tp(A.motG.gain,0,.1);tp(A.humG.gain,0,.1)}
   else{const f=snd==='electric'?20+v*14:28+v*30;
     tp(A.m1.frequency,f,.03);tp(A.m2.frequency,f*2.01,.03);tp(A.motF.frequency,f*1.6+80,.03);
     tp(A.motG.gain,(tr*.17+(v>.5?.012:0))*Math.min(1,.3+v/6));
@@ -1089,7 +1241,7 @@ function railAudio(dt){
   // légsűrítő álló helyzetben, időnként
   S.cpT=(S.cpT||rnd(10,30))-dt;if(S.cpT<=0){S.cpOn=!S.cpOn;S.cpT=S.cpOn?rnd(8,14):rnd(35,70)}tp(A.cpG.gain,S.cpOn&&v<2?.05:0,.4);
   // természet: szél, madarak nappal, tücskök éjjel (télen nincsenek)
-  const mo=new Date().getMonth(),warm=mo>=3&&mo<=9;tp(A.wdG.gain,.012+Math.min(.04,v*.0015),.5);tp(A.ckG.gain,warm&&day<.3?.012:0,1);
+  const mo=(R.date||new Date()).getMonth(),warm=mo>=3&&mo<=9;tp(A.wdG.gain,.012+Math.min(.04,v*.0015),.5);tp(A.ckG.gain,warm&&day<.3?.012:0,1);
   if(day>.4&&Math.random()<dt*(stationAt(S.x)>=0?.5:.18))sBird();
   // átjárók csengője
   let xb=0;for(const c of R.xing){const act=S.x>c.x-450&&S.x-TRAIN_L<c.x+8;c.act=act;if(act)xb=Math.max(xb,clamp(1-Math.abs(S.x-c.x)/450,.15,1))}
@@ -1113,7 +1265,7 @@ function step(dt){
   const Dy=R.dyn||DYN.metro,pf=S.v<Dy.pv?1:Math.pow(Dy.pv/S.v,1.15);
   let tgt=0;
   if(S.eb||lv==='VB')tgt=-Dy.vb;
-  else if(S.ars.act)tgt=-1.15*Dy.brk;
+  else if(S.ars.act&&!R.ww2)tgt=-1.15*Dy.brk;
   else{tgt={T2:-1.15,T1:-.65,'0':0,'1':S.v<8.3?.35:0,'2':.65*pf,'3':.95*pf,'4':1.25*pf}[lv];tgt*=tgt<0?Dy.brk:Dy.acc}
   if(tgt>0&&!closed)tgt=0;
   if(tgt>0&&(S.inc||S.crash&&S.crash.acc&&S.crash.acc.ph==='hit')){tgt=0;S.lockT-=dt;if(S.lockT<=0){S.lockT=4;toast('Vészhelyzet – a menet a helyszín biztosításáig nem folytatható','bad')}}
@@ -1128,7 +1280,7 @@ function step(dt){
   // ARS
   const lim=S.dir>0?limitAt(S.x):10;S.lim=lim;
   const over=kmh>lim+1.5;S.ars.over=over;
-  if(over){S.ars.t+=dt;if(!S.ars.act&&((S.ars.t>DIFF[cfg.diff].ars&&S.aCmd>-.3)||kmh>lim+8)){S.ars.act=true;S.score-=25;vib([80,60,80]);toast(R.sys+' beavatkozás – túllépted a '+lim+' km/h-t. −25','bad');sPssh(.16)}}
+  if(over){S.ars.t+=dt;if(!S.ars.act&&((S.ars.t>DIFF[cfg.diff].ars&&S.aCmd>-.3)||kmh>lim+8)){S.ars.act=true;S.score-=25;vib([80,60,80]);toast(R.ww2?'Túl gyors! Megengedett: '+lim+' km/h −25':R.sys+' beavatkozás – túllépted a '+lim+' km/h-t. −25','bad');sPssh(.16)}}
   else S.ars.t=0;
   if(S.ars.act&&kmh<lim-4)S.ars.act=false;
 
@@ -1141,7 +1293,8 @@ function step(dt){
     if(g&&!S.shoe[i]){S.shoe[i]=true;if(tract)arc(s,.9+Math.random()*.1);else if(S.v>6)arc(s,.3)}
     else if(!g&&S.shoe[i]){S.shoe[i]=false;if(tract)arc(s,.6)}});
   if(tract&&sh.length&&S.v>3&&Math.random()<dt*.3)arc(S.x-pick(sh),rnd(.2,.45));
-  if(R.rail)emitSmoke(dt);
+  if(R.rail){if(CARS[0].v.steam)steamStep(dt);else emitSmoke(dt)}
+  if(R.ww2)updWar(dt);
   updFx(dt);
 
   // RK kapcsolóhenger kattogás
@@ -1523,7 +1676,7 @@ function render(dt){
     const spr=v.metro?(!lit&&sprOK(SPR.d)?SPR.d:img):(v.img||v.cv);
     if(v.metro?sprOK(spr):!!spr){ctx.save();if(c.flip){ctx.translate(px*2+cw,0);ctx.scale(-1,1)}
       if(v.metro)drawInterior(k,px,py,cw/SPR_W,lit);else if(v.wins)drawInteriorR(k,c,px,py,ppm,lit);
-      ctx.drawImage(spr,px,py,cw,ch);if(v.board&&ppm>10)drawBoard(v,px,py,ppm);ctx.restore()}
+      ctx.drawImage(spr,px,py,cw,ch);if(v.board&&ppm>10)drawBoard(v,px,py,ppm);if(v.steam)drawRods(v,px,py,ppm);ctx.restore()}
     else{ctx.fillStyle='#3d6c95';ctx.fillRect(px,py+ch*.12,cw,ch*.62)}
     if(S.doors>0)DOORL.forEach((d,i)=>{if(d.k===k)drawDoor(i,ppm,railY,X,lit)});ctx.restore()}
   if(R.rail){railCouplers(ppm,railY,X)}else{drawCouplers(ppm,railY,X);drawHeadlight(ppm,railY,X)}
@@ -1544,7 +1697,7 @@ function render(dt){
   for(const i of visSt)(R.rail?drawRailLife:drawPlatformLife)(i,ppm,platTop,bandR,X,false);
   for(let i=0;i<R.n;i++){const P=R.P[i];if(P>vx0&&P<vx1+3)drawStopSign(X(P+.4),platTop,ppm)}
   drawIncident(ppm,platTop,bandR,X);
-  if(R.rail){for(const c of R.xing)drawCrossing(c,ppm,railY,X,true);drawSmoke(ppm,railY,X);railNight(ppm,railY,platTop,X,vx0,vx1);railHeadlight(ppm,railY,X);railTail(ppm,railY,X)}
+  if(R.rail){for(const c of R.xing)drawCrossing(c,ppm,railY,X,true);if(R.ww2){drawBooms(ppm,railY,X,false);drawBridge(ppm,railY,X,true)}drawSmoke(ppm,railY,X);railNight(ppm,railY,platTop,X,vx0,vx1);railHeadlight(ppm,railY,X);railTail(ppm,railY,X)}
   ctx.globalAlpha=1;
   drawFx(ppm,railY,X);
   if(!eco()){const vg=ctx.createRadialGradient(W/2,H*.55,Math.min(W,H)*.35,W/2,H*.55,Math.max(W,H)*.75);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.5)');ctx.fillStyle=vg;ctx.fillRect(0,0,W,H)}
@@ -1553,7 +1706,7 @@ function render(dt){
 }
 function drawFx(ppm,railY,X){
   if(!S.fx.length)return;ctx.save();ctx.globalCompositeOperation='lighter';ctx.lineCap='round';
-  for(const p of S.fx){const sx=X(p.x),sy=railY-p.h*ppm,a=clamp(p.life/p.max,0,1);if(sx<-40||sx>W+40)continue;
+  for(const p of S.fx){if(p.k==='m'||p.k==='d')continue;const sx=X(p.x),sy=railY-p.h*ppm,a=clamp(p.life/p.max,0,1);if(sx<-40||sx>W+40)continue;
     if(p.k==='f'){const r=(.8+2.2*p.str)*ppm*(.7+.3*Math.random());const rg=ctx.createRadialGradient(sx,sy,0,sx,sy,r);rg.addColorStop(0,`rgba(235,245,255,${a})`);rg.addColorStop(.25,`rgba(140,190,255,${.7*a})`);rg.addColorStop(1,'rgba(80,120,255,0)');ctx.fillStyle=rg;ctx.fillRect(sx-r,sy-r,2*r,2*r);
       ctx.strokeStyle=`rgba(220,235,255,${a})`;ctx.lineWidth=Math.max(1,.05*ppm);ctx.beginPath();ctx.moveTo(sx,sy+.1*ppm);for(let j=0;j<4;j++)ctx.lineTo(sx+rnd(-.5,.5)*ppm,sy-rnd(0,.6)*ppm*p.str);ctx.stroke();continue}
     ctx.strokeStyle=p.k==='a'?`rgba(170,215,255,${a})`:`rgba(255,${Math.round(150+90*a)},${Math.round(50*a)},${a})`;
@@ -1678,7 +1831,7 @@ function skyCols(D){const day=[[78,140,210],[196,224,242]],tw=[[52,70,120],[240,
 // éjszakai „szorzó” szín: ezzel sötétítjük a tájat
 function nightTint(D){const day=[255,255,255],tw=[236,196,176],nt=[62,78,128];return mix(mix(nt,day,D.dl),tw,D.tw*.5*(D.dl>0?1:.5))}
 function vnoise(x){const i=Math.floor(x),f=x-i,u=f*f*(3-2*f);return hash(i)*(1-u)+hash(i+1)*u}
-function railDay(){return dayInfo(S.base+S.t)}
+function railDay(){return dayInfo(S.base+S.t,R.date||undefined)}
 let RD=null; // aktuális napszak (képkockánként)
 function buildRailWorld(R){
   const sig=[];
@@ -1689,13 +1842,13 @@ function buildRailWorld(R){
     if(k<R.n-1){const a=P+600,b=R.P[k+1]-PLAT_A-700;for(let x=a+200;x<b;x+=1100+hash(k*9+x)*500)sig.push({x,kind:'block'})}}
   sig.sort((a,b)=>a.x-b.x);R.sig=sig;R.feat=[];
   R.birds=[];for(let k=0;k<R.n-1;k++){for(let x=R.P[k]+PLAT_B+300;x<R.P[k+1]-PLAT_A-200;x+=500+hash(x*.3)*900)R.birds.push({x,n:3+Math.floor(hash(x)*5),fly:false,t:0})}
-  R.xing=[];for(let k=0;k<R.n-1;k++){const a=R.P[k]+PLAT_B+250,b=R.P[k+1]-PLAT_A-350;if(b-a<500)continue;const n=b-a>2600?2:1;for(let j=0;j<n;j++)R.xing.push({x:Math.round(a+(b-a)*(j+.3+.4*hash(k*5+j+R.n))/n),act:false,done:false})}
+  R.xing=[];for(let k=0;!R.ww2&&k<R.n-1;k++){const a=R.P[k]+PLAT_B+250,b=R.P[k+1]-PLAT_A-350;if(b-a<500)continue;const n=b-a>2600?2:1;for(let j=0;j<n;j++)R.xing.push({x:Math.round(a+(b-a)*(j+.3+.4*hash(k*5+j+R.n))/n),act:false,done:false})}
   R.decor=R.P.map((P,i)=>({bld:P-Math.min(PLAT_A-14,TRAIN_L*.5),bench:[P-PLAT_A*.3,P-PLAT_A*.62].map(x=>x+hash(i*7+x)*2),lamps:[],poster:hash(i*17)}));
   R.decor.forEach((D,i)=>{const P=R.P[i];for(let x=P-PLAT_A+6;x<P+PLAT_B;x+=24)D.lamps.push(x)});
 }
 
 /* ---------- évszak: a növényzet, a földek és a hó színe a hónaphoz igazodik ---------- */
-function season(){const m=new Date().getMonth();
+function season(k){const m=k?{'tél':0,'tavasz':3,'nyár':6,'ősz':9}[k]:new Date().getMonth();
   if(m===11||m<=1)return{k:'tél',grass:[226,230,234],tree:null,field:[232,234,238],furrow:[196,200,206],soil:[150,140,128],snow:true};
   if(m<=4)return{k:'tavasz',grass:[104,146,62],tree:[[78,132,62],[96,150,70],[230,220,232]],field:[116,150,70],furrow:[96,128,58],soil:[118,92,64]};
   if(m<=7)return{k:'nyár',grass:[112,132,58],tree:[[56,98,46],[70,110,52]],field:[206,176,92],furrow:[180,150,74],soil:[128,100,70]};
@@ -1718,6 +1871,7 @@ function railBG(ppm,railY,X,vx0,vx1,camX){
   if(D.alt>-.15){const r=Math.max(6,H*.035),c=D.tw>.4?'255,170,90':'255,240,200',rg=ctx.createRadialGradient(sx,sy,0,sx,sy,r*5);rg.addColorStop(0,`rgba(${c},.55)`);rg.addColorStop(1,`rgba(${c},0)`);ctx.fillStyle=rg;ctx.fillRect(sx-r*5,sy-r*5,r*10,r*10);ctx.fillStyle=`rgb(${c})`;ctx.beginPath();ctx.arc(sx,sy,r,0,7);ctx.fill()}
   else{const mx=W*(.15+.7*((D.h+12)%24)/24),my=hz*.3,r=Math.max(5,H*.028);ctx.fillStyle='rgba(235,238,225,.9)';ctx.beginPath();ctx.arc(mx,my,r,0,7);ctx.fill();ctx.fillStyle=rgb(sTop);ctx.beginPath();ctx.arc(mx+r*.45,my-r*.2,r*.9,0,7);ctx.fill()}
   // felhők: lassan sodródnak, ősszel-télen több
+  if(R.ww2)drawWarSky(ppm,railY,X,hz);
   const nCl=E.k==='nyár'?4:E.k==='tavasz'?6:9,cc=mix(mix([250,250,252],[48,56,78],lit),[255,190,150],D.tw*.5);
   for(let i=0;i<nCl;i++){const span=W*1.6,x=((hash(i*4.7)*span-camX*ppm*.01+S.t*(3+hash(i)*4))%span+span)%span-W*.3,y=hz*(.12+hash(i*8.1)*.45),s=H*(.04+hash(i*2.2)*.05);
     ctx.fillStyle=rgba(cc,E.k==='nyár'?.75:.62);ctx.beginPath();ctx.ellipse(x,y,s*2.2,s*.55,0,0,7);ctx.ellipse(x-s*.8,y-s*.35,s,s*.7,0,0,7);ctx.ellipse(x+s*.6,y-s*.5,s*1.2,s*.8,0,0,7);ctx.fill();
@@ -1733,7 +1887,7 @@ function railBG(ppm,railY,X,vx0,vx1,camX){
   else hill(.03,H*.09,hz,rgb(mix(mix([120,150,175],[40,50,72],lit),[200,180,190],D.tw*.2)),R.n*.37,sc==='hills');
   // nagyfeszültségű távvezeték a távolban
   ctx.strokeStyle=rgba(mix([80,90,100],[20,24,30],lit),.6);ctx.lineWidth=1;const pp=110;
-  for(let i=Math.floor(camX*.06/pp)-1;i<Math.floor(camX*.06/pp)+W/(pp*ppm*.12)+2;i++){const x=(i*pp-camX*.06)*ppm*.12*2,b=hz+1,hh=H*.07;if(x<-40||x>W+40)continue;
+  if(!R.ww2)for(let i=Math.floor(camX*.06/pp)-1;i<Math.floor(camX*.06/pp)+W/(pp*ppm*.12)+2;i++){const x=(i*pp-camX*.06)*ppm*.12*2,b=hz+1,hh=H*.07;if(x<-40||x>W+40)continue;
     ctx.beginPath();ctx.moveTo(x-hh*.2,b);ctx.lineTo(x,b-hh);ctx.lineTo(x+hh*.2,b);ctx.moveTo(x-hh*.3,b-hh*.75);ctx.lineTo(x+hh*.3,b-hh*.75);ctx.moveTo(x-hh*.22,b-hh*.92);ctx.lineTo(x+hh*.22,b-hh*.92);ctx.stroke();
     const nx=x+pp*ppm*.24;ctx.beginPath();ctx.moveTo(x-hh*.3,b-hh*.75);ctx.quadraticCurveTo((x+nx)/2,b-hh*.55,nx-hh*.3,b-hh*.75);ctx.moveTo(x+hh*.3,b-hh*.75);ctx.quadraticCurveTo((x+nx)/2,b-hh*.55,nx+hh*.3,b-hh*.75);ctx.stroke()}
   let gy=hz;
@@ -1752,12 +1906,12 @@ function railBG(ppm,railY,X,vx0,vx1,camX){
     ctx.strokeStyle=tc(E.furrow,.05);ctx.lineWidth=1;ctx.beginPath();for(let k=0;k<6;k++){const y=fieldTop+(fieldBot-fieldTop)*(.3+k*.12);ctx.moveTo(x0,y);ctx.lineTo(x1,y)}ctx.stroke()}
   // párhuzamos országút autókkal
   const ry=fieldTop+(fieldBot-fieldTop)*.22,rh=Math.max(2,(fieldBot-fieldTop)*.06);ctx.fillStyle=tc([92,92,96]);ctx.fillRect(0,ry,W,rh);ctx.fillStyle=rgba(mix([230,230,220],[60,60,60],lit),.6);for(let x=-((camX*ppm*.2)%30);x<W;x+=30)ctx.fillRect(x,ry+rh/2-.5,12,1);
-  for(let i=0;i<5;i++){const dir=i%2?1:-1,sp=(14+hash(i*3)*8)*dir,span=W*1.8,x=((hash(i*6.1)*span+(S.t*sp-camX*.2)*ppm*.2)%span+span)%span-W*.4,y=ry+(dir>0?rh*.1:rh*.45),cw=Math.max(5,ppm*.9),chh=Math.max(2.5,ppm*.35);
+  for(let i=0;i<(R.ww2?0:5);i++){const dir=i%2?1:-1,sp=(14+hash(i*3)*8)*dir,span=W*1.8,x=((hash(i*6.1)*span+(S.t*sp-camX*.2)*ppm*.2)%span+span)%span-W*.4,y=ry+(dir>0?rh*.1:rh*.45),cw=Math.max(5,ppm*.9),chh=Math.max(2.5,ppm*.35);
     ctx.fillStyle=['#a33','#36a','#ddd','#333','#c83'][i];ctx.fillRect(x,y-chh*.6,cw,chh);ctx.fillRect(x+cw*.2,y-chh*1.1,cw*.55,chh*.55);
     if(lit>.4){ctx.fillStyle=dir>0?'rgba(255,240,200,.95)':'rgba(255,60,40,.9)';ctx.fillRect(dir>0?x+cw:x-1,y-chh*.4,2,2)}}
   // középső sáv: fasorok, falvak templommal, legelő állatok
   const seg=7,mp=.4,s0=Math.floor((camX*mp)/seg)-2,ms=ppm*.42,trees=E.tree;
-  for(let i=s0;i<s0+W/(seg*ms)+4;i++){const x=(i*seg-camX*mp)*ms,h=hash(i*1.37+R.n),y=fieldBot-(fieldBot-ry)*.05;if(x<-60||x>W+60)continue;
+  if(R.ww2)drawWarMid(ppm,railY,X,camX,hz,lit);else for(let i=s0;i<s0+W/(seg*ms)+4;i++){const x=(i*seg-camX*mp)*ms,h=hash(i*1.37+R.n),y=fieldBot-(fieldBot-ry)*.05;if(x<-60||x>W+60)continue;
     if(h<.42){const tr=ms*(1.5+hash(i*3.1)*2.2);// lombos fa, évszaktól függő színnel
       ctx.fillStyle=tc([66,48,34]);ctx.fillRect(x-ms*.16,y-tr*.3,ms*.32,tr*.9);
       if(trees){const tn=trees.length,c1=trees[((i%tn)+tn)%tn],c2=trees[(((i+1)%tn)+tn)%tn];ctx.fillStyle=tc(c1);ctx.beginPath();ctx.arc(x,y-tr*.75,tr,0,7);ctx.arc(x+tr*.7,y-tr*.45,tr*.75,0,7);ctx.fill();ctx.fillStyle=tc(c2,.1);ctx.beginPath();ctx.arc(x-tr*.5,y-tr*.4,tr*.7,0,7);ctx.fill();
@@ -1805,6 +1959,7 @@ function railBG(ppm,railY,X,vx0,vx1,camX){
   drawRailSignals(ppm,railY,X,vx0,vx1);
   drawTrackBed(ppm,railY,X,vx0,vx1,lit);
   for(const c of R.xing)drawCrossing(c,ppm,railY,X,false);
+  if(R.ww2){drawBridge(ppm,railY,X,false);drawCraters(ppm,railY,X);drawBooms(ppm,railY,X,true)}
 }
 // töltés, árok, ágyazat, aljak, sín, fű
 function drawTrackBed(ppm,railY,X,vx0,vx1,lit){const E=SEA,tc=(c,k=0)=>rgb(mix(mix(c,[0,0,0],k),[16,22,26],lit*.85)),step=Math.max(4,Math.min(10,ppm*1.5));
@@ -1859,7 +2014,7 @@ function railSigAspect(s){
 const SIGL={entry:[['g','#3dff7a'],['y','#ffc23a'],['r','#ff2a1c'],['y2','#ffc23a'],['w','#f4f4ff']],exit:[['g','#3dff7a'],['r','#ff2a1c'],['y','#ffc23a']],block:[['g','#3dff7a'],['r','#ff2a1c']],dist:[['y','#ffc23a'],['g','#3dff7a']]};
 function sigGeom(s,ppm,railY){const L=SIGL[s.kind],w=.5*ppm,lh=.36*ppm,h=L.length*lh+.15*ppm,hy=railY-(s.kind==='dist'?4.2:5.6)*ppm;return{L,w,lh,h,hy}}
 function drawRailSignals(ppm,railY,X,vx0,vx1){
-  for(const s of R.sig){if(s.x<vx0-3||s.x>vx1+3)continue;const sx=X(s.x),a=railSigAspect(s),{L,w,lh,h,hy}=sigGeom(s,ppm,railY);
+  for(const s of R.sig){if(s.x<vx0-3||s.x>vx1+3)continue;if(R.ww2){drawSemaphore(s,ppm,railY,X);continue}const sx=X(s.x),a=railSigAspect(s),{L,w,lh,h,hy}=sigGeom(s,ppm,railY);
     ctx.fillStyle='#d9d6cc';ctx.fillRect(sx-.07*ppm,hy,.14*ppm,railY-hy);ctx.fillStyle='#c33';for(let y=hy+h+.3*ppm;y<railY-.4*ppm;y+=.8*ppm)ctx.fillRect(sx-.07*ppm,y,.14*ppm,.4*ppm);
     if(s.kind==='entry'&&ppm>4){ctx.strokeStyle='#8a8f92';ctx.lineWidth=Math.max(1,.03*ppm);ctx.beginPath();ctx.moveTo(sx+.25*ppm,railY);ctx.lineTo(sx+.25*ppm,hy+h);ctx.moveTo(sx+.45*ppm,railY);ctx.lineTo(sx+.45*ppm,hy+h);for(let y=railY-.3*ppm;y>hy+h;y-=.3*ppm){ctx.moveTo(sx+.25*ppm,y);ctx.lineTo(sx+.45*ppm,y)}ctx.stroke()}
     ctx.fillStyle='#111315';rr(sx-w/2,hy,w,h,.12*ppm);ctx.fill();ctx.strokeStyle='#e9e6dc';ctx.lineWidth=Math.max(1,.04*ppm);ctx.stroke();
@@ -1867,7 +2022,7 @@ function drawRailSignals(ppm,railY,X,vx0,vx1){
     if(s.kind==='dist'&&ppm>4){ctx.fillStyle='#f4f1e8';ctx.fillRect(sx-.35*ppm,hy+h+.2*ppm,.7*ppm,.5*ppm);ctx.fillStyle='#111';ctx.beginPath();ctx.moveTo(sx-.25*ppm,hy+h+.62*ppm);ctx.lineTo(sx+.25*ppm,hy+h+.62*ppm);ctx.lineTo(sx,hy+h+.28*ppm);ctx.fill()}
     if(ppm>7&&s.kind!=='block'){ctx.fillStyle='#f4f1e8';const tw=.6*ppm;ctx.fillRect(sx-tw/2,hy-.42*ppm,tw,.34*ppm);ctx.fillStyle='#111';ctx.font=`700 ${.24*ppm}px IBM Plex Mono, monospace`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText({exit:'K',entry:'A',dist:'Ae'}[s.kind],sx,hy-.25*ppm)}}
 }
-function railSigGlow(ppm,railY,X,vx0,vx1){
+function railSigGlow(ppm,railY,X,vx0,vx1){if(R.ww2)return;
   for(const s of R.sig){if(s.x<vx0-3||s.x>vx1+3)continue;const sx=X(s.x),a=railSigAspect(s),{L,lh,hy}=sigGeom(s,ppm,railY),j=L.findIndex(l=>l[0]===a);if(j<0)continue;const y=hy+.12*ppm+lh*(j+.5),c=a==='g'?'60,255,120':a==='r'?'255,50,30':'255,190,60';
     const rg=ctx.createRadialGradient(sx,y,0,sx,y,1.6*ppm);rg.addColorStop(0,`rgba(${c},.55)`);rg.addColorStop(1,`rgba(${c},0)`);ctx.fillStyle=rg;ctx.fillRect(sx-1.6*ppm,y-1.6*ppm,3.2*ppm,3.2*ppm)}}
 /* ---------- vasúti átjáró: forgalom, sorompó, baleset ---------- */
@@ -1986,22 +2141,24 @@ function drawRailLife(i,ppm,platTop,bandR,X,back){
 }
 // éjszaka: a táj és a vonat sötétítése, majd a fények
 function railNight(ppm,railY,platTop,X,vx0,vx1){
-  const D=RD;if(D.dl>.97)return;const t=nightTint(D);
+  const D=RD;if(D.dl>.97)return;let t=nightTint(D);if(SEA.snow)t=mix(t,[200,210,235],.3);
   ctx.save();ctx.globalCompositeOperation='multiply';ctx.fillStyle=rgb(t);ctx.fillRect(0,0,W,H);ctx.restore();
   const a=1-D.dl;ctx.save();ctx.globalCompositeOperation='lighter';
-  for(let i=0;i<R.n;i++){const P=R.P[i];if(P-ST_A-30>vx1||P+PLAT_B+30<vx0)continue;
+  for(let i=0;!R.ww2&&i<R.n;i++){const P=R.P[i];if(P-ST_A-30>vx1||P+PLAT_B+30<vx0)continue;
     for(const lx of R.decor[i].lamps){const px=X(lx)+.57*ppm,py=railY-5.0*ppm;if(px<-12*ppm||px>W+12*ppm)continue;
       const rg=ctx.createRadialGradient(px,py,0,px,py,7*ppm);rg.addColorStop(0,`rgba(255,220,160,${.5*a})`);rg.addColorStop(.3,`rgba(255,200,130,${.16*a})`);rg.addColorStop(1,'rgba(255,200,130,0)');ctx.fillStyle=rg;ctx.fillRect(px-7*ppm,py-7*ppm,14*ppm,14*ppm);
       ctx.save();ctx.translate(px,platTop+.4*ppm);ctx.scale(1,.28);const pg=ctx.createRadialGradient(0,0,0,0,0,6*ppm);pg.addColorStop(0,`rgba(255,215,150,${.16*a})`);pg.addColorStop(1,'rgba(255,215,150,0)');ctx.fillStyle=pg;ctx.fillRect(-6*ppm,-6*ppm,12*ppm,12*ppm);ctx.restore()}}
   // a szerelvény ablakai
   for(const c of CARS){const v=c.v;if(!v.wins)continue;const left=S.x-c.off-v.L;if(left>vx1||left+v.L<vx0)continue;
     for(const[w0,w1]of v.wins){const a0=c.flip?v.L-w1:w0,x=X(left+a0),w=(w1-w0)*ppm,y=railY-(v.H-v.winT)*ppm,h=(v.winB-v.winT)*ppm;ctx.fillStyle=`rgba(255,214,150,${.32*a})`;ctx.fillRect(x,y,w,h)}}
+  {const v0=CARS[0].v;if(v0.steam){const fx=X(S.x-CARS[0].off-v0.L+v0.cabX),fy=railY-1.7*ppm,rg=ctx.createRadialGradient(fx,fy,0,fx,fy,2.6*ppm);rg.addColorStop(0,`rgba(255,140,40,${.5*a})`);rg.addColorStop(1,'rgba(255,120,30,0)');ctx.fillStyle=rg;ctx.fillRect(fx-2.6*ppm,fy-2.6*ppm,5.2*ppm,5.2*ppm)}}
+  if(S.war)for(const b of S.war.booms){if(b.t>1)continue;const bx=X(b.x),by=railY+(b.back?-1:1)*(1+b.dz*3)*ppm-ppm,r=(4+b.p*6)*ppm*(1-b.t*.5),rg=ctx.createRadialGradient(bx,by,0,bx,by,r);rg.addColorStop(0,`rgba(255,170,80,${(1-b.t)*.8})`);rg.addColorStop(1,'rgba(255,120,40,0)');ctx.fillStyle=rg;ctx.fillRect(bx-r,by-r,2*r,2*r)}
   railSigGlow(ppm,railY,X,vx0,vx1);
   if(Math.floor(S.t*2.2)%2===0)for(const c of R.xing){if(!c.act)continue;for(const[px,py]of[[X(c.x)+2.8*ppm,railY-3.65*ppm],[X(c.x)-3.4*ppm,railY-.75*ppm]]){const rg=ctx.createRadialGradient(px,py,0,px,py,2.5*ppm);rg.addColorStop(0,`rgba(255,60,30,${.6*a})`);rg.addColorStop(1,'rgba(255,60,30,0)');ctx.fillStyle=rg;ctx.fillRect(px-2.5*ppm,py-2.5*ppm,5*ppm,5*ppm)}}
   ctx.restore();
 }
 function railHeadlight(ppm,railY,X){
-  if(S.dir<0)return;const v=CARS[0].v,hx=S.x-(v.headX||.3),hh=v.headH||2,p=carPt(0,X(hx),railY-hh*ppm,ppm,railY,X),nt=RD?1-RD.dl:0;
+  if(S.dir<0)return;const v=CARS[0].v,hx=S.x-(v.headX||.3),hh=v.headH||2,p=carPt(0,X(hx),railY-hh*ppm,ppm,railY,X),nt=(RD?1-RD.dl:0)*(R.ww2?.3:1);
   ctx.save();ctx.globalCompositeOperation='lighter';
   if(nt>.2){const L=90*ppm,lg=ctx.createLinearGradient(p[0],0,p[0]+L,0);lg.addColorStop(0,`rgba(255,240,205,${.3*nt})`);lg.addColorStop(.4,`rgba(255,236,190,${.1*nt})`);lg.addColorStop(1,'rgba(255,236,190,0)');
     ctx.fillStyle=lg;ctx.beginPath();ctx.moveTo(p[0],p[1]-.15*ppm);ctx.lineTo(p[0]+L,railY-6*ppm);ctx.lineTo(p[0]+L,railY+.5*ppm);ctx.lineTo(p[0],p[1]+.15*ppm);ctx.fill()}
@@ -2028,7 +2185,7 @@ function drawInteriorR(k,c,px,py,sc,lit){const v=c.v,Y=m=>py+m*sc,Xs=m=>px+m*sc,
 // főmenü: napszakhoz illő jelenet, rajta egy elhaladó szerelvény
 let MM=null;
 function menuScene(){const c=$('mmc');if(!c){MM=null;return}
-  if(!MM||MM.c!==c){const ids=['v43','m41','bzmot','m44','metro'];MM={c,t:0,id:ids[Math.floor(Math.random()*ids.length)],last:performance.now(),ids}}
+  if(!MM||MM.c!==c){const ids=['v43','m424','m41','bzmot','br52','m44','eu','metro'];MM={c,t:0,id:ids[Math.floor(Math.random()*ids.length)],last:performance.now(),ids}}
   const now=performance.now(),dt=Math.min(.05,(now-MM.last)/1000);MM.last=now;MM.t+=dt;
   const w=c.clientWidth,h=c.clientHeight;if(!w||!h)return;const dp=Math.min(2,window.devicePixelRatio||1);if(c.width!==Math.round(w*dp)){c.width=Math.round(w*dp);c.height=Math.round(h*dp)}
   const g=c.getContext('2d');g.setTransform(dp,0,0,dp,0,0);const nw=new Date(),D=dayInfo(nw.getHours()*3600+nw.getMinutes()*60+nw.getSeconds(),nw),[a,b]=skyCols(D),hz=h*.58,lit=1-D.dl;
@@ -2059,6 +2216,143 @@ function drawBoard(v,px,py,ppm){const[x,y,w,h]=v.board,t=R.st[0].n+' – '+R.st[
 function drawDisc(p,x,feet,s){const h=p.h*s,up=S&&S.cur===p.st&&!S.departed[p.st]&&(S.doorState==='closed'||S.doorState==='warn'),y=up?feet-h*1.05:feet-h*.5,dx=x+s*.32;
   ctx.strokeStyle='#d9d4c6';ctx.lineWidth=Math.max(1,s*.05);ctx.beginPath();ctx.moveTo(x+s*.14,feet-h*.6);ctx.lineTo(dx,y+s*.18);ctx.stroke();
   ctx.fillStyle=up?'#1f9a4a':'#c8281e';ctx.beginPath();ctx.arc(dx,y,s*.17,0,7);ctx.fill();ctx.strokeStyle='#f4f1e8';ctx.lineWidth=Math.max(1,s*.05);ctx.stroke()}
+
+/* ==================== II. világháború: futás közben ==================== */
+// hajtó- és csatlórudak: a kerekek forgásával együtt mozognak
+function drawRods(v,px,py,ppm){const st=v.steam;if(!st||ppm<2.5)return;const th=S.x/st.dr,cr=st.crank,yA=v.H-st.dr,pins=st.drive.map(x=>[px+(x+Math.cos(th)*cr)*ppm,py+(yA+Math.sin(th)*cr)*ppm]);
+  const lw=Math.max(1.5,.1*ppm);ctx.lineCap='round';ctx.strokeStyle='#121314';ctx.lineWidth=lw*1.5;ctx.beginPath();ctx.moveTo(pins[0][0],pins[0][1]);ctx.lineTo(pins[pins.length-1][0],pins[pins.length-1][1]);ctx.stroke();
+  ctx.strokeStyle='#9a9ea0';ctx.lineWidth=lw;ctx.stroke();
+  const mi=pins.length>4?2:1,xh=px+(st.cyl-.8+Math.cos(th)*cr*.9)*ppm,yh=py+(v.H-1.36)*ppm;ctx.strokeStyle='#121314';ctx.lineWidth=lw*1.7;ctx.beginPath();ctx.moveTo(xh,yh);ctx.lineTo(pins[mi][0],pins[mi][1]);ctx.stroke();ctx.strokeStyle='#b4b8ba';ctx.lineWidth=lw*1.1;ctx.stroke();
+  ctx.fillStyle='#55595c';ctx.fillRect(xh-.2*ppm,yh-.12*ppm,.4*ppm,.24*ppm);ctx.fillStyle=st.red;for(const[x,y]of pins){ctx.beginPath();ctx.arc(x,y,Math.max(1.5,.07*ppm),0,7);ctx.fill()}}
+// gőzhang: kipufogás (puffanás) kerékfordulatonként négyszer, sípszó
+function steamStep(dt){const v=CARS[0]&&CARS[0].v;if(!v||!v.steam)return;const th=S.x/v.steam.dr,q=Math.floor(th/(Math.PI/2));
+  if(S.chq===undefined)S.chq=q;if(q!==S.chq&&S.v>.15){S.chq=q;const thr=Math.max(0,S.aCmd)/1.1,vol=(.05+.22*thr)*Math.min(1,.4+S.v/8);
+    if(A.ctx){burst({dur:.18+.12*thr,f:380+S.v*6,q:.9,vol});burst({dur:.12,f:120,type:'lowpass',vol:vol*.8})}
+    if(cfg.sparks){const x=S.x-CARS[0].off-v.L+v.exh[0];for(let k=0;k<(thr>.2?2:1);k++)S.fx.push({k:'m',x:x+rnd(-.2,.2),h:v.chimTop,vx:rnd(-.4,.4),vy:rnd(1.4,2.4)+thr,life:rnd(2,3.4),max:3.4,r:.3+thr*.25,dk:thr>.15?.95:.25})}}
+  else if(Math.abs(q-S.chq)>8)S.chq=q;
+  // álló helyzetben: szivattyú-, fúvóhang, vékony füst
+  if(S.v<.2&&Math.random()<dt*1.4){const x=S.x-CARS[0].off-v.L+v.exh[0];S.fx.push({k:'m',x,h:v.chimTop,vx:rnd(-.2,.2),vy:rnd(.6,1),life:2.5,max:2.5,r:.25,dk:.2})}}
+/* ---------- háborús események ---------- */
+function warInit(){const W={booms:[],planes:[],flak:[],flares:[],gaps:[],craters:[],repair:null,dmg:0,t:0,raid:null,zone:null};
+  if(R.scen==='len'){const a=R.P[0]+(R.len)*.36,b=R.P[0]+R.len*.62;W.zone={a,b,label:'a frontzóna (Szinyavino magaslatai felől lőtt szakasz)'};W.next=rnd(3,6)}
+  if(R.scen==='bud'){W.raid={waves:[45,95,150],a:R.P[0]-PLAT_A-500,b:R.P[0]+(R.P[1]-R.P[0])*.42,siren:false,wi:0};W.zone={a:W.raid.a,b:W.raid.b,label:'a bombázott rendező'}}
+  if(R.scen==='blr'){W.demol=[];for(let k=0;k<R.n-1;k++){const d=R.P[k+1]-R.P[k],n=d>9000?2:1;for(let j=0;j<n;j++)W.demol.push({x:Math.round(R.P[k]+PLAT_B+600+(d-PLAT_A-1400)*(j+.25+.5*hash(k*7+j))/n),done:false})}}
+  S.war=W}
+function warHitTrain(x,pow){const W=S.war,rear=S.x-TRAIN_L,dd=x<rear?rear-x:x>S.x?x-S.x:0;if(dd<20){const d=(1-dd/20)*pow*14;W.dmg=Math.min(100,W.dmg+d);S.score-=Math.round(d);if(d>4){vib(120);for(const c of S.car){c.vy+=rnd(.1,.4)*pow;c.va+=rnd(-.01,.01)}}}
+  const near=Math.abs(x-S.x);if(near<80){S.flash=Math.max(S.flash,.35*(1-near/80));cam.d+=rnd(-1,1)*(1-near/80)*1.5}}
+function boom(x,back,pow){const W=S.war;W.booms.push({x,back,t:0,p:pow,dz:back?rnd(.2,1):rnd(.2,.9)});const dist=Math.abs(x-S.x),vol=clamp(1-dist/700,.05,1);
+  if(A.ctx){tone(38+rnd(0,12),.9,.5*vol,'sine');burst({dur:1.2,f:300,type:'lowpass',vol:.45*vol});burst({dur:.5,f:1800,q:.7,vol:.18*vol,when:.02})}
+  if(cfg.sparks)for(let k=0;k<(back?6:14);k++)S.fx.push({k:'d',x:x+rnd(-1,1),h:rnd(.1,.5),vx:rnd(-6,6),vy:rnd(3,11),life:rnd(.8,1.6),max:1.6,back});
+  for(let k=0;k<5;k++)S.fx.push({k:'m',x:x+rnd(-2,2),h:rnd(.3,2),vx:rnd(-.6,.6),vy:rnd(.4,1.2),life:rnd(3,6),max:6,r:.9+pow,dk:.9});
+  W.craters.push({x,back,r:1+pow*1.2});if(W.craters.length>60)W.craters.shift();if(!back)warHitTrain(x,pow)}
+function sShellWhistle(d){if(!A.ctx)return;const C=A.ctx,t=C.currentTime,o=C.createOscillator(),g=C.createGain();o.frequency.setValueAtTime(1900,t);o.frequency.exponentialRampToValueAtTime(500,t+d);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.04,t+.1);g.gain.linearRampToValueAtTime(.07,t+d*.9);g.gain.linearRampToValueAtTime(0,t+d);o.connect(g).connect(A.master);o.start(t);o.stop(t+d+.05)}
+function sAirSiren(){if(!A.ctx)return;const C=A.ctx,t=C.currentTime,o=C.createOscillator(),o2=C.createOscillator(),g=C.createGain();o.type='sawtooth';o2.type='sawtooth';
+  for(let k=0;k<5;k++){o.frequency.setValueAtTime(240,t+k*6);o.frequency.linearRampToValueAtTime(520,t+k*6+3);o.frequency.linearRampToValueAtTime(240,t+k*6+6);o2.frequency.setValueAtTime(244,t+k*6);o2.frequency.linearRampToValueAtTime(526,t+k*6+3);o2.frequency.linearRampToValueAtTime(244,t+k*6+6)}
+  const f=C.createBiquadFilter();f.type='lowpass';f.frequency.value=900;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.06,t+2);g.gain.setValueAtTime(.06,t+28);g.gain.linearRampToValueAtTime(0,t+30);o.connect(f);o2.connect(f);f.connect(g).connect(A.master);o.start(t);o2.start(t);o.stop(t+30.2);o2.stop(t+30.2)}
+function sPlanes(dur){if(!A.ctx)return;const C=A.ctx,t=C.currentTime,g=C.createGain(),f=C.createBiquadFilter();f.type='lowpass';f.frequency.value=220;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.09,t+dur*.4);g.gain.linearRampToValueAtTime(0,t+dur);
+  for(const fr of[46,49,52]){const o=C.createOscillator();o.type='sawtooth';o.frequency.value=fr;o.connect(f);o.start(t);o.stop(t+dur+.1)}f.connect(g).connect(A.master)}
+function updWar(dt){const W=S.war;if(!W)return;W.t+=dt;
+  for(const b of W.booms)b.t+=dt;W.booms=W.booms.filter(b=>b.t<4);
+  for(const f of W.flak)f.t+=dt;W.flak=W.flak.filter(f=>f.t<5);
+  for(const f of W.flares){f.t+=dt;f.h-=dt*1.1}W.flares=W.flares.filter(f=>f.t<22&&f.h>2);
+  for(const p of W.planes){p.x+=p.v*dt;for(const bm of p.bombs||[]){bm.t+=dt}}
+  W.planes=W.planes.filter(p=>p.x<S.x+5000);
+  if(R.scen==='len'&&W.zone){const inZ=S.x>W.zone.a-300&&S.x-TRAIN_L<W.zone.b+200;
+    if(inZ&&!W.zin){W.zin=true;toast('Frontzóna: az ellenség belát a pályára – ne állj meg!','bad')}
+    if(!inZ&&W.zin&&S.x>W.zone.b+200){W.zin=false;W.zone.done=true;S.score+=Math.max(0,100-Math.round(W.dmg));toast('Kiértél a frontzónából','good')}
+    if(inZ){W.next-=dt*(S.v<5?2.4:1);if(W.next<=0){W.next=rnd(2.2,5.5);const slow=S.v<5,x=slow?S.x+rnd(-TRAIN_L,40):Math.random()<.55?S.x+rnd(70,330):S.x-TRAIN_L-rnd(25,220),back=Math.random()<(slow?.45:.6);sShellWhistle(.9);setTimeout(()=>{if(S&&S.war===W)boom(x,back,rnd(.6,1.1))},900)}
+      if(Math.random()<dt*.05&&W.flares.length<2)W.flares.push({x:S.x+rnd(40,260),h:rnd(60,90),t:0})}}
+  if(W.raid){const rd=W.raid;if(!rd.siren&&W.t>2){rd.siren=true;sAirSiren();toast('LÉGIRIADÓ! Vidd ki a vonatot a rendezőből, át a Déli összekötő hídon!','bad')}
+    if(rd.wi<rd.waves.length&&W.t>rd.waves[rd.wi]){rd.wi++;sPlanes(26);const n=8+Math.floor(Math.random()*5);for(let k=0;k<n;k++)W.planes.push({x:S.x-420-k*rnd(14,22)-rnd(0,30),alt:rnd(.6,.85)+(k%3)*.05,v:rnd(52,58),bombs:[],drop:rd.a+rnd(0,(rd.b-rd.a)),dropped:false});toast(`Bombázók – ${rd.wi}. hullám`,'bad')}
+    for(const p of W.planes){if(!p.dropped&&p.x>p.drop-120){p.dropped=true;for(let k=0;k<3;k++){const x=clamp(p.drop+rnd(-60,90),rd.a,rd.b+120);p.bombs.push({x,t:0});setTimeout(()=>{if(S&&S.war===W)boom(x,Math.random()<.55,rnd(.8,1.3))},2400+k*250)}}
+      if(Math.random()<dt*1.2)W.flak.push({x:p.x+rnd(-40,40),alt:p.alt+rnd(-.08,.05),t:0}),A.ctx&&Math.random()<.4&&burst({dur:.25,f:500,type:'lowpass',vol:.06})}}
+  if(W.demol){for(const d of W.demol){if(!d.done&&S.dir>0&&d.x-S.x<Math.max(650,S.v*S.v/(2*.5*(R.dyn?R.dyn.brk:1))+180)&&d.x>S.x){d.done=true;boom(d.x,false,1.2);W.gaps.push({x:d.x,fixed:false});toast('Robbanás a pályán előtted – a sín megszakadt, állj meg!','bad');sAlarm()}}
+    for(const gp of W.gaps){if(gp.fixed)continue;
+      if(S.x>=gp.x-1.5&&S.dir>0){if(S.v>1.2&&!S.ended){derail(gp);return}S.x=Math.min(S.x,gp.x-1.5);S.v=0}
+      if(!W.repair&&S.v<.05&&gp.x-S.x<220&&gp.x>S.x){W.repair={gp,t:0,dur:28};toast('Pályamunkások javítják a sínt – kb. fél perc (Időugrással átugorható)','good');
+        for(let k=0;k<4;k++){const q=newPax(-1,gp.x+rnd(-8,-2),rnd(.2,.6));q.state='crew';q.tx=gp.x+rnd(-1.5,1.5);q.sp=2.2;q.c='#4a4a3a';q.l='#2a2a24';q.cap='#3a3a30';q.bag=false;q.hair=false;S.crew.push(q)}}}
+    if(W.repair){W.repair.t+=dt;if(W.repair.t>=W.repair.dur){W.repair.gp.fixed=true;W.repair=null;S.score+=60;toast('A sín kijavítva – a menet folytatható +60','good');S.crew.forEach(q=>{q.leave=true;q.tx=q.x-12;q.sp=1.6;q.lt=0})}}}
+  if(W.dmg>=100&&!S.ended){S.ended=true;S.events.push(['A vonat megsemmisült',-300]);S.score-=300;toast('A vonat súlyosan megsérült – a menet véget ért','bad');setTimeout(showEnd,1500)}}
+function derail(gp){S.ended=true;S.v=0;S.eb=true;S.score-=400;S.events.push(['Kisiklás a felrobbantott sínen',-400]);boom(gp.x,false,1.5);S.dark=1.2;for(const c of S.car){c.vy+=1.2;c.va+=rnd(-.05,.05)}toast('Kisiklás! A vonat a sínhiányra futott.','bad');setTimeout(showEnd,2200)}
+// időugrás: a következő eseményhez vagy a javítás végére
+function timeJump(){if(!R||!R.ww2||!S.war||paused&&!ov.hidden&&!$('pCont'))return;const W=S.war;
+  if(W.repair){W.repair.t=W.repair.dur;S.t+=20;toast('Időugrás: a pályamunkások végeztek');return}
+  const nextSt=S.next<R.n?R.P[S.next]-PLAT_A-150:R.len;let tx=null,lab='';
+  if(W.zone&&!W.zone.done&&S.x<W.zone.a-450){tx=W.zone.a-400;lab=W.zone.label}
+  if(W.demol){const d=W.demol.find(d=>!d.done&&d.x>S.x+1200);if(d&&(tx===null||d.x-1100<tx)){tx=d.x-1100;lab='a következő robbantás elé'}}
+  if(tx===null||tx<=S.x+50){tx=nextSt;lab=S.next<R.n?R.st[S.next].n+' elé':''}
+  tx=Math.min(tx,nextSt);if(tx<=S.x+50||S.doorState!=='closed'&&!R.freight)return toast('Most nincs hova ugrani');
+  const d=tx-S.x;S.t+=d/Math.max(S.v,12);S.x=tx;S.v=Math.max(S.v,12);axles().forEach((o,i)=>S.ax[i]=Math.floor((S.x-o)/JOINT));cam.sw=true;
+  toast('Időugrás: '+lab,'good')}
+// égbolt: bombázók, légvédelmi robbanások, világítórakéták
+function drawWarSky(ppm,railY,X,hz){const Wr=S.war;if(!Wr)return;
+  for(const p of Wr.planes){const sx=W*.5+(p.x-S.x)*ppm*.12,sy=hz*(1-p.alt)*.95+H*.03,s=Math.max(10,H*.045);if(sx<-80||sx>W+80)continue;
+    ctx.fillStyle='rgba(30,32,36,.88)';ctx.beginPath();ctx.ellipse(sx,sy,s*.95,s*.13,0,0,7);ctx.fill();ctx.fillRect(sx-s*.25,sy-s*.04,s*.7,s*.06);ctx.fillRect(sx-s*1.0,sy-s*.24,s*.08,s*.28);ctx.fillRect(sx-s*.85,sy-s*.24,s*.08,s*.28);ctx.fillRect(sx-s*1.0,sy-s*.04,s*.25,s*.05);
+    for(const bm of p.bombs||[]){const t=bm.t;if(t>2.4)continue;const bx=X(bm.x)+(1-t/2.4)**2*(sx-X(bm.x)),by=sy+(railY-sy)*(t/2.4)**2;ctx.fillStyle='#1a1a1a';ctx.fillRect(bx-1,by-3,2.5,6)}}
+  for(const f of Wr.flak){const sx=W*.5+(f.x-S.x)*ppm*.12,sy=hz*(1-f.alt)*.95+H*.03,a=clamp(1-f.t/5,0,1),r=Math.max(3,H*.009)*(1+f.t*.25);if(f.t<.15){ctx.fillStyle='rgba(255,200,120,.9)';ctx.beginPath();ctx.arc(sx,sy,r*.6,0,7);ctx.fill()}ctx.fillStyle=`rgba(30,30,30,${a*.7})`;ctx.beginPath();ctx.arc(sx,sy,r,0,7);ctx.fill()}
+  for(const f of Wr.flares){const sx=X(f.x),sy=railY-f.h*ppm*.25-H*.25;if(sx<-200||sx>W+200)continue;ctx.save();ctx.globalCompositeOperation='lighter';const rg=ctx.createRadialGradient(sx,sy,0,sx,sy,H*.5);rg.addColorStop(0,'rgba(255,250,220,.5)');rg.addColorStop(.2,'rgba(255,240,200,.12)');rg.addColorStop(1,'rgba(255,240,200,0)');ctx.fillStyle=rg;ctx.fillRect(sx-H*.5,sy-H*.5,H,H);ctx.restore();
+    ctx.fillStyle='#fffbe8';ctx.beginPath();ctx.arc(sx,sy,3,0,7);ctx.fill();ctx.strokeStyle='rgba(220,220,220,.4)';ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(sx,sy-30);ctx.stroke()}}
+// becsapódások: tűzgömb, füst- és földoszlop
+function drawBooms(ppm,railY,X,back){const Wr=S.war;if(!Wr)return;
+  for(const b of Wr.booms){if(b.back!==back)continue;const sx=X(b.x),gy=back?railY-(1+b.dz*3)*ppm:railY+(1+b.dz*3)*ppm,t=b.t,s=(1+b.p)*ppm;if(sx<-20*s||sx>W+20*s)continue;
+    if(t<.5){ctx.save();ctx.globalCompositeOperation='lighter';const r=s*(1.5+t*6),rg=ctx.createRadialGradient(sx,gy-s,0,sx,gy-s,r);rg.addColorStop(0,`rgba(255,240,190,${1-t*2})`);rg.addColorStop(.35,`rgba(255,140,40,${.8-t*1.6})`);rg.addColorStop(1,'rgba(255,90,20,0)');ctx.fillStyle=rg;ctx.fillRect(sx-r,gy-s-r,2*r,2*r);ctx.restore()}
+    const a=clamp(1-t/4,0,1),hh=s*(2+t*3.5);ctx.fillStyle=`rgba(70,58,46,${a*.75})`;ctx.beginPath();ctx.moveTo(sx-s*.6,gy);ctx.quadraticCurveTo(sx-s*(1+t),gy-hh*.6,sx-s*(.8+t*.8),gy-hh);ctx.lineTo(sx+s*(.8+t*.8),gy-hh);ctx.quadraticCurveTo(sx+s*(1+t),gy-hh*.6,sx+s*.6,gy);ctx.fill()}}
+function drawCraters(ppm,railY,X){const Wr=S.war;if(!Wr)return;
+  for(const c of Wr.craters){const sx=X(c.x);if(sx<-30*ppm||sx>W+30*ppm)continue;const y=c.back?railY-.9*ppm:railY+1.4*ppm;ctx.fillStyle='rgba(40,32,26,.7)';ctx.beginPath();ctx.ellipse(sx,y,c.r*ppm,c.r*.22*ppm,0,0,7);ctx.fill();ctx.fillStyle='rgba(120,100,80,.5)';ctx.beginPath();ctx.ellipse(sx,y-c.r*.12*ppm,c.r*1.15*ppm,c.r*.1*ppm,0,Math.PI,0);ctx.fill()}
+  for(const gp of Wr.gaps){if(gp.fixed)continue;const sx=X(gp.x);ctx.fillStyle='#2a221c';ctx.beginPath();ctx.ellipse(sx,railY,2.2*ppm,.5*ppm,0,0,7);ctx.fill();
+    ctx.strokeStyle='#5e5850';ctx.lineWidth=Math.max(2,.06*ppm);ctx.beginPath();ctx.moveTo(sx-2.4*ppm,railY-.18*ppm);ctx.quadraticCurveTo(sx-1.6*ppm,railY-.5*ppm,sx-1*ppm,railY-.9*ppm);ctx.moveTo(sx+2.4*ppm,railY-.18*ppm);ctx.quadraticCurveTo(sx+1.8*ppm,railY+.2*ppm,sx+1.2*ppm,railY+.4*ppm);ctx.stroke();
+    if(Math.floor(S.t*3)%2===0){const ty=railY-4*ppm,r=.5*ppm;ctx.fillStyle='#e2382a';ctx.beginPath();ctx.moveTo(sx,ty-r);ctx.lineTo(sx+r,ty+r*.75);ctx.lineTo(sx-r,ty+r*.75);ctx.fill();ctx.fillStyle='#fff';ctx.font=`700 ${r*1.1}px Saira Condensed, sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('!',sx,ty+r*.2)}}}
+// alakjelző (szemafor): vízszintes kar = Megállj, ferdén felfelé = Szabad; éjjel lámpa
+function drawSemaphore(s,ppm,railY,X){const sx=X(s.x),a=railSigAspect(s),hy=railY-(s.kind==='dist'?4.2:6.4)*ppm,lit=RD?1-RD.dl:0;
+  ctx.strokeStyle='#4a4d50';ctx.lineWidth=Math.max(1,.05*ppm);ctx.beginPath();ctx.moveTo(sx-.18*ppm,railY);ctx.lineTo(sx-.05*ppm,hy);ctx.moveTo(sx+.18*ppm,railY);ctx.lineTo(sx+.05*ppm,hy);for(let y=railY-.4*ppm;y>hy;y-=.5*ppm){const w=.18*(y-hy)/(railY-hy);ctx.moveTo(sx-(w+.05)*ppm,y);ctx.lineTo(sx+(w+.05)*ppm,y-.25*ppm)}ctx.stroke();
+  ctx.fillStyle='#2a2c2e';ctx.fillRect(sx-.12*ppm,hy-.2*ppm,.24*ppm,.25*ppm);
+  if(s.kind==='dist'){const r=.42*ppm,open=a!=='r';ctx.fillStyle='#e8c22a';ctx.beginPath();if(open)ctx.ellipse(sx+.3*ppm,hy+.25*ppm,.06*ppm,r,0,0,7);else ctx.arc(sx+.3*ppm,hy+.25*ppm,r,0,7);ctx.fill();ctx.strokeStyle='#111';ctx.lineWidth=Math.max(1,.04*ppm);ctx.stroke();return}
+  const ang=a==='r'?0:-.75;ctx.save();ctx.translate(sx,hy);ctx.rotate(ang);ctx.fillStyle='#c8281e';ctx.fillRect(0,-.12*ppm,1.4*ppm,.24*ppm);ctx.fillStyle='#f4f1e8';ctx.fillRect(1.05*ppm,-.12*ppm,.14*ppm,.24*ppm);ctx.strokeStyle='#111';ctx.lineWidth=Math.max(1,.03*ppm);ctx.strokeRect(0,-.12*ppm,1.4*ppm,.24*ppm);ctx.restore();
+  const ly=hy+.6*ppm,col=a==='r'?'255,50,30':'60,255,120';ctx.fillStyle='#1d1f20';ctx.fillRect(sx-.16*ppm,ly-.16*ppm,.32*ppm,.32*ppm);ctx.fillStyle=lit>.3?`rgb(${col})`:'#3a3d40';ctx.beginPath();ctx.arc(sx,ly,.09*ppm,0,7);ctx.fill();
+  if(lit>.3){ctx.save();ctx.globalCompositeOperation='lighter';const rg=ctx.createRadialGradient(sx,ly,0,sx,ly,1.2*ppm);rg.addColorStop(0,`rgba(${col},.45)`);rg.addColorStop(1,`rgba(${col},0)`);ctx.fillStyle=rg;ctx.fillRect(sx-1.2*ppm,ly-1.2*ppm,2.4*ppm,2.4*ppm);ctx.restore()}}
+// korabeli táj: Leningrád (havas mocsár, erdőszél, leégett falu kéményei), Budapest (látkép, rendező, Duna), Belarusz (fenyves, falu)
+function drawWarMid(ppm,railY,X,camX,hz,lit){const tc=(c,k=0)=>rgb(mix(mix(c,[0,0,0],k),[16,22,26],lit*.85)),sc=R.scen,ms=ppm*.42,seg=7,s0=Math.floor((camX*.4)/seg)-2,y=railY-1.15*ppm;
+  if(sc==='bud'){// pesti látkép a háttérben: Gellért-hegy a Citadellával, gyárkémények
+    ctx.fillStyle=tc([120,124,130]);ctx.beginPath();ctx.moveTo(0,hz);for(let x=0;x<=W+8;x+=8){const u=(x+camX*ppm*.006)/W;ctx.lineTo(x,hz-H*.05*(1+Math.sin(u*5)*.3)-(Math.abs(((u*1.3)%2)-1)<.12?H*.06:0))}ctx.lineTo(W,hz);ctx.fill();
+    for(let i=0;i<14;i++){const x=((hash(i*3.3)*W*1.5-camX*ppm*.015)%(W*1.5)+W*1.5)%(W*1.5)-W*.25,h=H*(.06+hash(i)*.07);ctx.fillStyle=tc([90,84,80]);ctx.fillRect(x,hz-h,H*.012,h);
+      for(let k=0;k<3;k++){const t=(S.t*.15+k/3+hash(i))%1;ctx.fillStyle=rgba(mix([60,60,62],[20,20,22],lit),.25*(1-t));ctx.beginPath();ctx.arc(x+H*.006+t*H*.05,hz-h-t*H*.06,H*(.008+t*.02),0,7);ctx.fill()}}
+    // a rendező vágányai kocsisorokkal
+    const ya=hz+(y-hz)*.3;for(let r=0;r<4;r++){const yy=ya+r*(y-ya)/4.5;ctx.fillStyle=tc([70,66,60]);ctx.fillRect(0,yy,W,Math.max(1,ppm*.05));for(let i=Math.floor((camX*(.5+r*.1))/14)-1;i<Math.floor((camX*(.5+r*.1))/14)+W/(14*ppm*(.5+r*.1))+2;i++){if(hash(i*1.7+r)<.35)continue;const x=(i*14-camX*(.5+r*.1))*ppm*(.5+r*.1),w=12*ppm*(.5+r*.1),h=3*ppm*(.5+r*.1);ctx.fillStyle=tc(hash(i+r)>.5?[90,66,50]:[70,62,58]);ctx.fillRect(x,yy-h,w,h)}}}
+  for(let i=s0;i<s0+W/(seg*ms)+4;i++){const x=(i*seg-camX*.4)*ms,h=hash(i*1.37+R.n);if(x<-60||x>W+60)continue;
+    if(sc==='len'){if(h<.45){const tr=ms*(1.4+hash(i*3.1)*2.4);ctx.fillStyle=tc(h<.25?[38,52,44]:[60,56,48]);ctx.beginPath();ctx.moveTo(x-tr*.5,y);ctx.lineTo(x,y-tr*2.6);ctx.lineTo(x+tr*.5,y);ctx.fill();ctx.fillStyle=rgba(mix([240,244,250],[70,80,100],lit),.8);ctx.beginPath();ctx.moveTo(x-tr*.2,y-tr*1.6);ctx.lineTo(x,y-tr*2.6);ctx.lineTo(x+tr*.2,y-tr*1.6);ctx.fill()}
+      else if(h<.55){ctx.strokeStyle=tc([230,228,220]);ctx.lineWidth=Math.max(1,ms*.18);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+ms*.2,y-ms*4);ctx.stroke()}
+      else if(h<.6){// leégett falu: álló kémények
+        ctx.fillStyle=tc([90,70,60]);for(let k=0;k<3;k++){ctx.fillRect(x+k*ms*3,y-ms*2.6,ms*.7,ms*2.6)}ctx.fillStyle=tc([40,36,34]);ctx.fillRect(x-ms,y-ms*.3,ms*9,ms*.3)}
+      else if(h<.66&&S.war&&S.war.zone){const wx=i*seg/.4;// drótakadály a frontzónában
+        ctx.strokeStyle=tc([60,56,50]);ctx.lineWidth=1;ctx.beginPath();for(let k=0;k<4;k++){ctx.moveTo(x+k*ms*2,y);ctx.lineTo(x+k*ms*2+ms,y-ms*1.4);ctx.moveTo(x+k*ms*2+ms*2,y);ctx.lineTo(x+k*ms*2+ms,y-ms*1.4)}ctx.moveTo(x,y-ms*1.1);ctx.lineTo(x+ms*8,y-ms*1.1);ctx.stroke()}}
+    else if(sc==='blr'){if(h<.6){const tr=ms*(1.6+hash(i*3.1)*2.6);ctx.fillStyle=tc([34,52,36]);ctx.beginPath();ctx.moveTo(x-tr*.55,y);ctx.lineTo(x,y-tr*2.9);ctx.lineTo(x+tr*.55,y);ctx.fill();ctx.fillStyle=tc([90,60,40]);ctx.fillRect(x-ms*.1,y-ms*.4,ms*.2,ms*.4)}
+      else if(h<.68){const bw=ms*4.4,bh=ms*2.6;ctx.fillStyle=tc([110,84,60]);ctx.fillRect(x,y-bh,bw,bh);ctx.fillStyle=tc([80,70,50]);ctx.beginPath();ctx.moveTo(x-ms*.3,y-bh);ctx.lineTo(x+bw/2,y-bh*1.6);ctx.lineTo(x+bw+ms*.3,y-bh);ctx.fill();ctx.strokeStyle=tc([70,52,38]);ctx.lineWidth=1;ctx.beginPath();for(let k=1;k<5;k++){ctx.moveTo(x,y-bh*k/5);ctx.lineTo(x+bw,y-bh*k/5)}ctx.stroke()}}
+    else if(sc==='bud'&&h<0){const tr=ms*(1.4+hash(i*3)*1.6);ctx.fillStyle=tc(h<.12?[150,170,90]:[230,220,232]);ctx.beginPath();ctx.arc(x,y-tr,tr,0,7);ctx.fill();ctx.fillStyle=tc([70,52,38]);ctx.fillRect(x-ms*.12,y-tr*.3,ms*.24,tr*.4)}}}
+// Duna és a Déli összekötő vasúti híd (rácsos tartó)
+function drawBridge(ppm,railY,X,front){const B=R.bridge;if(!B)return;const a=X(B.a),b=X(B.b);if(b<-20||a>W+20)return;const lit=RD?1-RD.dl:0;
+  if(!front){ctx.fillStyle=rgb(mix([96,120,128],[16,24,34],lit));ctx.fillRect(a,railY+.4*ppm,b-a,H);ctx.fillStyle='rgba(255,255,255,.12)';for(let i=0;i<30;i++){const x=a+hash(i*3.7)*(b-a),yy=railY+(.8+hash(i)*6)*ppm;ctx.fillRect(x+Math.sin(S.t+i)*4,yy,10+hash(i*2)*20,1)}
+    ctx.fillStyle=rgb(mix([150,140,128],[40,40,44],lit));const sp=(B.b-B.a)/4;for(let k=0;k<=4;k++){const x=X(B.a+k*sp);ctx.fillRect(x-1.2*ppm,railY+.3*ppm,2.4*ppm,H)}
+    ctx.fillStyle='#3a3a38';ctx.fillRect(a,railY-.05*ppm,b-a,.5*ppm)}
+  const sp=(B.b-B.a)/4,th=6*ppm,col=front?'rgba(46,52,56,.92)':'#3a4044';ctx.strokeStyle=col;ctx.lineWidth=Math.max(1.5,(front?.16:.12)*ppm);ctx.beginPath();
+  for(let k=0;k<4;k++){const x0=X(B.a+k*sp),x1=X(B.a+(k+1)*sp),n=8;ctx.moveTo(x0,railY+.2*ppm);ctx.lineTo(x0,railY-th);ctx.lineTo(x1,railY-th);ctx.lineTo(x1,railY+.2*ppm);for(let j=0;j<n;j++){const xa=x0+(x1-x0)*j/n,xb=x0+(x1-x0)*(j+1)/n;ctx.moveTo(xa,j%2?railY-th:railY+.2*ppm);ctx.lineTo(xb,j%2?railY+.2*ppm:railY-th)}}ctx.stroke()}
+/* ---------- idővonal: szabad ugrás a háborús évek eseményei között ---------- */
+function showHistory(back){freeze();const sel=Math.max(0,WW2.findIndex(w=>ROUTES[cfg.route]&&ROUTES[cfg.route].id===w.id));let cur=sel;
+  const pos=w=>{const d=new Date(w.date),t0=new Date('1939-09-01'),t1=new Date('1945-09-02');return clamp((d-t0)/(t1-t0),0,1)*100};
+  const fmt=w=>{const d=new Date(w.date);return`${d.getFullYear()}. ${['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'][d.getMonth()]} ${d.getDate()}.`};
+  ovShow(`<div class="card hist">${head('Idővonal 1939–1945','II. világháború a vasúton')}
+   <div class="full tl"><div class="tlbar"></div>${[1940,1941,1942,1943,1944,1945].map(y=>`<span class="tly" style="left:${clamp((new Date(y+'-01-01')-new Date('1939-09-01'))/(new Date('1945-09-02')-new Date('1939-09-01')),0,1)*100}%">${y}</span>`).join('')}
+    ${WW2.map((w,i)=>`<button class="tlm ${WW2.slice().sort((a,b)=>a.date<b.date?-1:1).indexOf(w)%2?'dn':''}" data-i="${i}" style="left:${pos(w)}%" aria-label="${w.n}"><i></i><b>${w.date.replace(/-/g,'.')}</b></button>`).join('')}</div>
+   <div class="full hcard" id="hC"></div>
+   <button class="mbtn" id="hBack">Vissza</button><button class="mbtn pri" id="hGo">Ugrás ide</button></div>`);
+  const fill=()=>{const w=WW2[cur];ov.querySelectorAll('.tlm').forEach((b,i)=>b.classList.toggle('on',i===cur));
+    $('hC').innerHTML=`<div class="hhead"><span class="sub">${fmt(w)} · ${w.place}</span><h2>${w.n}</h2><span class="sub">${VINFO[w.veh].n} · ${w.d}</span></div>
+     <canvas id="hThumb" aria-hidden="true"></canvas>
+     <div class="htxt"><h3>Mi történt</h3>${w.hist.map(p=>`<p>${p}</p>`).join('')}<h3>A játékban</h3><p>${w.game}</p>
+     <h3>Források</h3><ul>${w.src.map(([t,u])=>`<li><a href="${u}" target="_blank" rel="noopener">${t}</a></li>`).join('')}</ul></div>`;
+    $('hGo').textContent='Ugrás ide: '+fmt(w);const ri=ROUTES.findIndex(r=>r.id===w.id);drawThumb($('hThumb'),consistKeys(ROUTES[ri]))};
+  ov.querySelectorAll('.tlm').forEach(b=>b.onclick=()=>{cur=+b.dataset.i;fill()});
+  $('hBack').onclick=()=>back?back():showMain();$('hGo').onclick=()=>{cfg.route=ROUTES.findIndex(r=>r.id===WW2[cur].id);saveCfg();startGame()};fill()}
+
 /* ---------- felület ---------- */
 const $=id=>document.getElementById(id);
 function toast(t,kind=''){const box=$('toasts'),el=document.createElement('div');el.className='toast '+kind;el.textContent=t;box.appendChild(el);
@@ -2071,7 +2365,7 @@ function buildProg(){const pr=$('prog');pr.innerHTML='<div class="track"></div>'
   R.P.forEach((p,i)=>{const d=document.createElement('div');d.className='dot';d.style.left=`calc(8px + (100% - 16px) * ${p/R.len})`;d.style.borderColor=d.style.color=LINES[R.st[i].l].c;d.id='pd'+i;d.title=R.st[i].n;pr.appendChild(d)});
   const t=document.createElement('div');t.className='trn';t.id='ptr';pr.appendChild(t);
   const a=document.createElement('div');a.className='nm';a.id='pnm';pr.appendChild(a);
-  $('ars').innerHTML=(R.rail?[0,40,60,80,100,120].filter(v=>v<=R.vmax):[0,40,60,70,80]).map(v=>`<span data-v="${v}">${v}</span>`).join('');$('lArs').textContent=R.sys}
+  $('ars').innerHTML=(R.rail?[0,40,60,80,100,120].filter(v=>v<=R.vmax):[0,40,60,70,80]).map(v=>`<span data-v="${v}">${v}</span>`).join('');$('lArs').textContent=R.sys;const pl=$('pax').parentNode;if(pl&&pl.firstChild&&pl.firstChild.nodeType===3)pl.firstChild.nodeValue=R.ww2?'Sérülés ':'Utas '}
 let hudT=0;
 function updHud(){
   const kmh=S.v*3.6;$('spd').innerHTML=`${Math.round(kmh)}<small>km/h</small>`;
@@ -2086,7 +2380,7 @@ function updHud(){
   else lbl='Menet vége';
   $('stLbl').textContent=lbl;$('stName').innerHTML=e?`<i style="background:${LINES[e.l].c};color:${LINES[e.l].ink||'#fff'}">${LINES[e.l].lbl||e.l}</i>${e.n}`:'–';
   $('dist').textContent=dist;$('sched').textContent=sch;const de=$('delta');de.textContent=dl;de.className=cls;
-  $('clock').textContent=clockStr(S.t);$('score').textContent=S.score;$('pax').textContent=S.onboard;
+  $('clock').textContent=clockStr(S.t);$('score').textContent=S.score;$('pax').textContent=R.ww2?Math.round(S.war?S.war.dmg:0)+'%':S.onboard;
   $('lDoor').className='lamp '+(S.doorState==='closed'?'g':'r');$('lDoor').textContent=R.freight?(S.doorState==='closed'?'MENET':'ÁLLVA'):S.doorState==='closed'?'AJTÓ ZÁRVA':'AJTÓ NYITVA';
   $('lArs').className='lamp '+(S.ars.act?'r':S.ars.over?'a':'');$('lVb').className='lamp '+(S.eb?'r':'');
   const bd=$('bDir');bd.classList.toggle('rev',S.dir<0);$('dirL').textContent=S.dir>0?'E':'H';bd.setAttribute('aria-label','Irányváltó: '+(S.dir>0?'előre':'hátra'));
@@ -2097,7 +2391,7 @@ function updHud(){
   for(let i=0;i<R.n;i++){const d=$('pd'+i);if(d)d.classList.toggle('done',!!S.served[i])}
 }
 
-const APP_VER='2026.11.09-6',SHARE_URL='https://m3metro.vercel.app';
+const APP_VER='2026.11.09-7',SHARE_URL='https://m3metro.vercel.app';
 /* ---------- QR-kód generátor (bájt mód, M szint, 1–10. verzió) ---------- */
 const QR=(()=>{
   const ECC=[-1,10,16,26,18,24,16,18,22,22,26],NB=[-1,1,1,1,2,2,4,4,4,5,5];
@@ -2152,13 +2446,13 @@ const ssGet=k=>{try{return sessionStorage.getItem(k)}catch(e){return null}},ssSe
 const CA='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function ck(bits){let c=0;for(let i=0;i<bits.length;i+=6){let v=0;for(let j=0;j<6;j++)v=v*2+(bits[i+j]||0);c=(c*31+v+7)%256}return c}
 function encCode(o){const bits=[],put=(v,n)=>{for(let i=n-1;i>=0;i--)bits.push(Math.floor(v/2**i)%2)};
-  put(1,2);put(o.r,4);put(o.d,2);put(o.s?1:0,1);put(Math.min(131071,Math.max(0,o.p|0)),17);put(Math.floor(Math.random()*65536),16);put(ck(bits),8);
+  if(o.r<16){put(1,2);put(o.r,4);put(o.d,2);put(o.s?1:0,1);put(Math.min(131071,Math.max(0,o.p|0)),17);put(Math.floor(Math.random()*65536),16)}else{put(2,2);put(o.r,5);put(o.d,2);put(o.s?1:0,1);put(Math.min(131071,Math.max(0,o.p|0)),17);put(Math.floor(Math.random()*32768),15)}put(ck(bits),8);
   let s='';for(let i=0;i<50;i+=5){let v=0;for(let j=0;j<5;j++)v=v*2+bits[i+j];s+=CA[v]}return s.slice(0,5)+'-'+s.slice(5)}
 function decCode(str){const s=String(str||'').toUpperCase().replace(/[^A-Z0-9]/g,'');if(s.length!==10)return null;const bits=[];
   for(const ch of s){const v=CA.indexOf(ch);if(v<0)return null;for(let j=4;j>=0;j--)bits.push((v>>j)&1)}
   const get=(a,n)=>{let v=0;for(let i=a;i<a+n;i++)v=v*2+bits[i];return v};
-  if(get(42,8)!==ck(bits.slice(0,42))||get(0,2)!==1)return null;
-  const o={r:get(2,4),d:get(6,2),s:get(8,1)===1,p:get(9,17)};if(o.r>=ROUTES.length||o.d>2)return null;return o}
+  const ver=get(0,2);if(get(42,8)!==ck(bits.slice(0,42))||(ver!==1&&ver!==2))return null;
+  const o=ver===1?{r:get(2,4),d:get(6,2),s:get(8,1)===1,p:get(9,17)}:{r:get(2,5),d:get(7,2),s:get(9,1)===1,p:get(10,17)};if(o.r>=ROUTES.length||o.d>2)return null;return o}
 const fmtCode=s=>{s=String(s).toUpperCase().replace(/[^A-Z0-9]/g,'');return s.slice(0,5)+'-'+s.slice(5)};
 const linkFor=code=>SHARE_BASE+'/?kod='+code;
 // bemenet: kód vagy teljes link
@@ -2265,17 +2559,19 @@ function showMain(){
   const Dm=dayInfo(new Date().getHours()*3600+new Date().getMinutes()*60);
   ovShow(`<div class="card" style="border-top:3px solid ${rgb(skyCols(Dm)[1])}">
    <div style="display:flex;flex-direction:column;gap:10px"><span class="sub">Metró és felszíni vasút <span id="offl" style="color:var(--green)"></span></span><h1>M3 <span>Metró</span> Szimulátor</h1>
-   <div class="mmw"><canvas id="mmc" role="img" aria-label="Elhaladó szerelvény a napszaknak megfelelő égbolttal"></canvas><span id="mmLab"></span></div><p>Vezess metrót az M1–M4 vonalakon, vagy Bzmotot, Csörgőt, Szilit és tehervonatot a Balaton körül. Állj meg pontosan, cseréld az utasokat, tartsd a menetrendet.</p></div>
+   <div class="mmw"><canvas id="mmc" role="img" aria-label="Elhaladó szerelvény a napszaknak megfelelő égbolttal"></canvas><span id="mmLab"></span></div><p>Vezess metrót az M1–M4 vonalakon, Bzmotot, Csörgőt, Szilit és tehervonatot a Balaton körül, vagy gőzmozdonyt a II. világháború vasútjain. Állj meg pontosan, tartsd a menetrendet.</p></div>
    <div class="menu">
     ${inGame()?`<button class="mbtn pri ic" id="mCont">${ico('play')}<span>Folytatás<small>${R.name} · ${R.st[Math.min(R.n-1,S.next)].n}</small></span></button>`:''}
     <button class="mbtn ${inGame()?'':'pri'} ic" id="mNew">${ico('route')}<span>Új menet<small>${ROUTES[cfg.route].n}</small></span></button>
     <button class="mbtn ic acc" id="mVeh">${ico('train')}<span>Járművek<small>${pickLabel(ROUTES[cfg.route])} · lapozd, próbáld ki</small></span></button>
+    <button class="mbtn ic hist" id="mHist">${ico('hist')}<span>Idővonal 1939–1945<small>II. világháború a vasúton · Leningrád, Budapest, Belarusz</small></span></button>
     <div class="mgrid"><button class="mbtn ic sm" id="mSet">${ico('gear')}<span>Beállítások</span></button><button class="mbtn ic sm" id="mHelp">${ico('help')}<span>Irányítás</span></button><button class="mbtn ic sm" id="mShare">${ico('share')}<span>Megosztás</span></button>
      <button class="mbtn ic sm" id="mCode">${ico('code')}<span>Kód</span></button><button class="mbtn ic sm" id="mUpd">${ico('upd')}<span>Frissítés<small>v${APP_VER}</small></span></button><button class="mbtn ic sm quit" id="mQuit">${ico('quit')}<span>Kilépés</span></button></div>
    </div></div>`);
   offlineStatus();
   if(inGame())$('mCont').onclick=resume;
   $('mNew').onclick=()=>inGame()?showConfirm(showMain,showRoutes,'Új menet indítása','A jelenlegi menet és pontjai elvesznek.'):showRoutes();
+  $('mHist').onclick=()=>inGame()?showConfirm(showMain,()=>showHistory(showMain),'Idővonal','A jelenlegi menet és pontjai elvesznek.'):showHistory(showMain);
   $('mVeh').onclick=()=>inGame()?showConfirm(showMain,()=>showGarage(showMain),'Járműcsere','A jelenlegi menet és pontjai elvesznek.'):showGarage(showMain);
   $('mSet').onclick=()=>showSettings(showMain);$('mShare').onclick=()=>showShare(showMain);$('mCode').onclick=()=>showCodeEntry(showMain);$('mUpd').onclick=()=>showUpdate(showMain);$('mHelp').onclick=()=>showHelp(showMain);
   $('mQuit').onclick=()=>inGame()?showConfirm(showMain,quitApp,'Kilépés','A jelenlegi menet és pontjai elvesznek.'):quitApp();
@@ -2334,13 +2630,14 @@ function showPause(){
   ovShow(`<div class="card">${head('Szünet',R.name)}
    <div class="menu full">
     <button class="mbtn pri" id="pCont">Folytatás</button>
+    ${R&&R.ww2?'<button class="mbtn" id="pJump">Időugrás a következő eseményhez<small>a menetidő hozzáadódik</small></button>':''}
     <button class="mbtn" id="pRestart">Menet újrakezdése</button>
     <button class="mbtn" id="pSet">Beállítások</button>
     <button class="mbtn" id="pHelp">Irányítás</button>
     <button class="mbtn" id="pShare">Megosztás (QR-kód, link)</button>
     <button class="mbtn quit" id="pQuit">Kilépés a főmenübe</button>
    </div></div>`);
-  $('pCont').onclick=resume;
+  $('pCont').onclick=resume;if($('pJump'))$('pJump').onclick=()=>{resume();timeJump()};
   $('pRestart').onclick=()=>showConfirm(showPause,startGame,'Újrakezdés','A menet elölről indul, a pontok elvesznek.');
   $('pSet').onclick=()=>showSettings(showPause);$('pHelp').onclick=()=>showHelp(showPause);$('pShare').onclick=()=>showShare(showPause);
   $('pQuit').onclick=()=>showConfirm(showPause,exitToMain,'Kilépés a főmenübe','A jelenlegi menet és pontjai elvesznek.');
@@ -2422,7 +2719,7 @@ function showRoutes(){
   const grp=(t,k,sub)=>`<h2 class="full grp">${t}${sub?` <span class="sub">${sub}</span>`:''}</h2><div class="routes full">${ROUTES.map((r,i)=>routeKind(r)===k?btn(r,i):'').join('')}</div>`;
   ovShow(`<div class="card">${head('Új menet','útvonal')}
    <div class="full rveh"><span>Jármű: <b id="rv">${pickLabel(ROUTES[cfg.route])}</b></span><button class="b" id="rVeh">${ico('train')}Járműcsere</button></div>
-   ${grp('Metró','metro')}${grp('Személyvonat','pass',Dn.part+' – a táj a napszakot követi')}${grp('Tehervonat','freight')}
+   ${grp('Metró','metro')}${grp('Személyvonat','pass',Dn.part+' – a táj a napszakot követi')}${grp('Tehervonat','freight')}${grp('II. világháború','ww2','részletek az Idővonalon')}
    <p class="full note">Nehézség: ${DIFF[cfg.diff].n} · Szakaszok: ${cfg.short?'rövidített (×0,6)':'valós hossz'} · Bemondó: ${{retro:'retro férfi',normal:'normál',off:'ki'}[cfg.voice]} — a Beállításokban módosítható.</p>
    <button class="mbtn" id="rBack">Vissza</button><button class="mbtn pri" id="go">Indulás</button></div>`);
   const bs=ov.querySelectorAll('.routes button');bs.forEach(b=>b.onclick=()=>{cfg.route=+b.dataset.i;saveCfg();bs.forEach(x=>x.classList.toggle('sel',x===b));$('rv').textContent=pickLabel(ROUTES[cfg.route])});
@@ -2481,6 +2778,7 @@ addEventListener('keydown',e=>{if(!S)return;const k=e.key;
   else if(k==='h'||k==='H'){if(!e.repeat&&!paused){aInit();hornOn()}}
   else if(k==='r'||k==='R')toggleDir();
   else if(k==='c'||k==='C')nextCam();
+  else if(k==='j'||k==='J'){if(!paused)timeJump()}
   else if(k==='+'||k==='=')setZoom(cam.z[cam.mode]*1.25);else if(k==='-')setZoom(cam.z[cam.mode]/1.25)});
 addEventListener('keyup',e=>{if(e.key==='h'||e.key==='H')hornOff()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){if(inGame()&&!paused)showPause()}else{resize();if(!sprOK(img)){img.src=CAR_IMG}}});
