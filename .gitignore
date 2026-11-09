@@ -1,0 +1,5 @@
+android/app/build/
+android/build/
+android/.gradle/
+android/app/src/main/assets/www/
+android/app/src/main/res/mipmap-*/

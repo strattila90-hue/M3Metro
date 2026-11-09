@@ -1,0 +1,49 @@
+# Önálló Android-alkalmazás (APK) építése: minden fájl az APK-ban van, internet nélkül is fut.
+# Minden feltöltéskor felépíti, és kiadja ide (mindig ugyanez a link):
+# https://github.com/strattila90-hue/M3Metro/releases/download/apk/m3-metro.apk
+name: APK
+
+on:
+  push:
+    branches: [main, 'claude/**']
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Fájlok az APK-ba
+        run: python3 android/prep.py
+
+      - name: APK építése
+        run: gradle -p android assembleRelease --no-daemon --stacktrace
+
+      - name: Kiadás
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk "$APK_NAME"
+          ls -la "$APK_NAME"
+          gh release delete apk --yes --cleanup-tag || true
+          gh release create apk "$APK_NAME" --title "$APP_NAME – Android-alkalmazás v$APP_VERSION" --latest \
+            --notes "$APP_NAME v$APP_VERSION önálló Android-alkalmazásként (APK): minden fájl benne van, internet nélkül is működik. Letöltés után koppints a fájlra, engedélyezd az ismeretlen forrásból való telepítést, és telepítsd. Az új verzió a régire rátelepíthető, az adatok megmaradnak. Közvetlen link: https://github.com/${{ github.repository }}/releases/download/apk/$APK_NAME"
