@@ -16,6 +16,8 @@ A metró mellett négy felszíni útvonal is választható (Új menet → Felsz�
 - Részletek: forgóvázak tengelyágy-csavarokkal, rugókkal, lengéscsillapítókkal és fékpofákkal; ütközők, csavarkapocs, fékcső; homlok- és zárjelző lámpák; kürtök; tetőszellőzők; zsalus gépterem-ajtók; a személykocsikon lebukó ablakok és útvonaltábla (pl. „Siófok – Fonyód”); teherkocsikon kézifék-kerék, veszélyességi bárca. Festés: Bzmot piros–sárga („piroska”), M41 gyári piros, V43 a 2000-es sorozat kék–sárga–szürke–fehér („Papagáj”) festésével, 15,7 m hosszú, 1180 mm-es kerekekkel.
 - A táj követi a napszakot: a valós idő és dátum alapján (napkelte, napnyugta) nappal, hajnalban, alkonyatkor vagy éjjel jelenik meg, éjjel világító ablakokkal, lámpákkal és fényszóróval. A főmenü képe is a napszakhoz igazodik.
 - A felszíni vonatok nehezebbek: lassabban gyorsulnak és fékeznek, a sebességet az EVM felügyeli; a sárga lassújel-táblán a korlátozás tízes egységben áll.
+- Hangok a felszínen: dízelmotor gyújtási lüktetéssel és kipufogó-dübörgéssel (az M41-en jellegzetes csörgéssel, a Bzmoton négyfokozatú mechanikus sebességváltással), a V43-on transzformátorzúgás és fokozatkapcsoló-kattogás, légsűrítő álló helyzetben, légfék, pneumatikus harmonikaajtó, kalauzsíp, járművenként más kürt, háromhangú állomási dallam, szél, nappal madarak, meleg hónapokban éjjel tücskök, a teherkocsiknál erősebb csattogás.
+- Vasúti átjárók: villogó fény, csengő, leengedett sorompó, várakozó autók; ha az átjáró előtt kürtölsz (H), +10 pont.
 - Tehervonattal a megállási jelnél a **Megállás**, majd a menetrend szerinti időben az **Indulás** gombbal lehet továbbmenni.
 
 ## Közzététel

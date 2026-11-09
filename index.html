@@ -807,7 +807,7 @@ function b64ToBuf(d){const b=atob(d.split(',')[1]);const u=new Uint8Array(b.leng
 function loadChime(){let d=A.chimeData||null;if(!d)try{d=localStorage.getItem('m3sim.chime')}catch(e){}if(!d||!A.ctx||A.chimeBuf)return;A.chimeData=d;try{A.ctx.decodeAudioData(b64ToBuf(d)).then(b=>A.chimeBuf=b).catch(()=>{})}catch(e){}}
 function playChime(){if(cfg.chime==='none')return 0;loadChime();
   if(cfg.chime==='custom'&&A.chimeBuf){const s=A.ctx.createBufferSource();s.buffer=A.chimeBuf;const g=A.ctx.createGain();g.gain.value=cfg.vvol/100;s.connect(g).connect(A.master);s.start();return A.chimeBuf.duration*1000+200}
-  sGong();return 1150}
+  if(R&&R.rail)sRailChime();else sGong();return 1150}
 function paStart(){if(A.ctx)tp(A.paG.gain,cfg.vvol/100*.9,.08)}
 function paStop(){if(A.ctx)tp(A.paG.gain,0,.3)}
 function sGong(){[[659,0],[523,.55]].forEach(([f,w])=>{tone(f,1.6,.13,'sine',w);tone(f*2.76,.5,.03,'sine',w);tone(f*5.4,.25,.012,'sine',w)})}
@@ -834,10 +834,10 @@ function sBell(dur){if(!A.ctx)return;const C=A.ctx,t=C.currentTime,out=C.createG
   const n=C.createBufferSource();n.buffer=A.white;const ng=C.createGain();ng.gain.value=.12;const nf=C.createBiquadFilter();nf.type='highpass';nf.frequency.value=4000;n.connect(nf).connect(ng).connect(am);n.start(t,Math.random());n.stop(t+dur+.05);
   lfo.start(t);lfo.stop(t+dur+.05)}
 function sChime(){[[740,0],[587,.38],[440,.76]].forEach(([f,w])=>{tone(f,1.1,.11,'sine',w);tone(f*2,.6,.025,'sine',w)})}
-function sDoor(close){burst({dur:1.9,f:close?520:460,q:2,vol:.09,at:.25});if(close){tone(62,.22,.45,'sine',1.85);burst({dur:.12,f:300,q:1,vol:.25,when:1.85})}else sPssh(.07)}
+function sDoor(close){if(R&&R.rail){sFoldDoor(close);return}burst({dur:1.9,f:close?520:460,q:2,vol:.09,at:.25});if(close){tone(62,.22,.45,'sine',1.85);burst({dur:.12,f:300,q:1,vol:.25,when:1.85})}else sPssh(.07)}
 let horn=null;
 function hornOn(){if(!A.ctx||horn)return;const C=A.ctx,g=C.createGain();g.gain.value=0;const f=C.createBiquadFilter();f.type='lowpass';f.frequency.value=1500;
-  const o1=C.createOscillator(),o2=C.createOscillator();o1.type=o2.type='sawtooth';const hf=R&&R.rail?(CARS[0].v.snd==='electric'?[311,370]:[262,330]):[349,415];o1.frequency.value=hf[0];o2.frequency.value=hf[1];o1.connect(f);o2.connect(f);f.connect(g).connect(A.master);o1.start();o2.start();
+  const o1=C.createOscillator(),o2=C.createOscillator();o1.type=o2.type='sawtooth';const hf=R&&R.rail?({v43:[294,370],m41:[262,330],m44:[330,392],bzmot:[440,554]}[R.veh]||[262,330]):[349,415];if(S)S.hornX=S.x;if(R&&R.rail){o1.type='square'}o1.frequency.value=hf[0];o2.frequency.value=hf[1];o1.connect(f);o2.connect(f);f.connect(g).connect(A.master);o1.start();o2.start();
   g.gain.setTargetAtTime(.13,C.currentTime,.03);horn={g,o1,o2}}
 function hornOff(){if(!horn)return;const h=horn;horn=null;h.g.gain.setTargetAtTime(0,A.ctx.currentTime,.05);setTimeout(()=>{h.o1.stop();h.o2.stop()},300)}
 function speak(t,noChime){
@@ -868,6 +868,91 @@ function audioUpdate(ebOn){
   tp(A.sqG.gain,b>0&&v<4.5?(ebOn?.07:.03)*(1-v/4.5)*(.6+.4*Math.sin(S.t*2.7)):0,.08);
   tp(A.arsG.gain,S.ars.over&&(S.t*4%1)<.5?.045:0,.01);
   tp(A.crG.gain,inSt&&S.v<1?.06:0,.4);
+  if(R.rail)railAudio(1/25);else if(A.dz1)for(const g of[A.dzG,A.exG,A.rtG,A.tfG,A.cpG,A.wdG,A.ckG])tp(g.gain,0,.2);
+}
+
+/* ---------- felszíni hangok: dízelmotor, transzformátor, légsűrítő, természet, átjárócsengő ---------- */
+function aInitRail(){const C=A.ctx;if(A.dz1)return;
+  const filt=(t,f,q=1)=>{const x=C.createBiquadFilter();x.type=t;x.frequency.value=f;x.Q.value=q;return x},gain=v=>{const g=C.createGain();g.gain.value=v;return g};
+  const loop=buf=>{const s=C.createBufferSource();s.buffer=buf;s.loop=true;s.start();return s};
+  // dízelmotor: fűrészfog alaphang + feles négyszög, gyújtási lüktetés (AM), aluláteresztő szűrő
+  A.dzF=filt('lowpass',380,1.4);A.dzG=gain(0);const am=gain(.6);A.dzAM=am;
+  A.dz1=C.createOscillator();A.dz1.type='sawtooth';A.dz2=C.createOscillator();A.dz2.type='square';
+  A.dz1.connect(am);A.dz2.connect(gain(.35)).connect(am);am.connect(A.dzF).connect(A.dzG).connect(A.master);
+  A.dzL=C.createOscillator();A.dzL.type='sine';const ld=gain(.4);A.dzL.connect(ld).connect(am.gain);
+  // a Csörgő csörgése: sávszűrt zaj, a gyújtás ütemére kapuzva
+  A.rtF=filt('bandpass',1150,2.2);const rAM=gain(.5);A.rtL=C.createOscillator();A.rtL.type='square';const rd=gain(.5);A.rtL.connect(rd).connect(rAM.gain);
+  A.rtG=gain(0);loop(A.white).connect(A.rtF).connect(rAM).connect(A.rtG).connect(A.master);
+  // kipufogó-dübörgés
+  A.exF=filt('lowpass',140,.8);A.exG=gain(0);loop(A.white).connect(A.exF).connect(A.exG).connect(A.master);
+  // transzformátor-zúgás (V43): 100, 200, 300 Hz
+  A.tfG=gain(0);for(const[f,v]of[[100,.6],[200,.3],[300,.15]]){const o=C.createOscillator();o.frequency.value=f;o.connect(gain(v)).connect(A.tfG);o.start()}A.tfG.connect(A.master);
+  // légsűrítő: tompa, gyors puffogás
+  A.cpG=gain(0);const cAM=gain(.5),cl=C.createOscillator();cl.type='square';cl.frequency.value=7.5;cl.connect(gain(.5)).connect(cAM.gain);cl.start();
+  loop(A.white).connect(filt('lowpass',380,1)).connect(cAM).connect(A.cpG).connect(A.master);
+  // szél / hullámzás a szabadban
+  A.wdG=gain(0);const wf=filt('bandpass',500,.6),wl=C.createOscillator();wl.frequency.value=.13;const wd=gain(250);wl.connect(wd).connect(wf.frequency);wl.start();loop(A.white).connect(wf).connect(A.wdG).connect(A.master);
+  // tücskök: magas hang, gyors ciripelés, lassú lüktetéssel
+  A.ckG=gain(0);const co=C.createOscillator();co.frequency.value=4300;const cA=gain(0),cq=C.createOscillator();cq.type='square';cq.frequency.value=32;cq.connect(gain(.5)).connect(cA.gain);
+  const cs=C.createOscillator();cs.frequency.value=.9;const cs2=gain(.5),cB=gain(.5);cs.connect(cs2).connect(cB.gain);co.connect(cA).connect(cB).connect(A.ckG).connect(A.master);co.start();cq.start();cs.start();A.ckBase=0;
+  for(const o of[A.dz1,A.dz2,A.dzL,A.rtL])o.start();
+}
+// madárfütty: rövid, csúszó hangok
+function sBird(){if(!A.ctx)return;const C=A.ctx,t=C.currentTime,n=2+Math.floor(Math.random()*4),f0=rnd(2400,4200);
+  for(let k=0;k<n;k++){const o=C.createOscillator(),g=C.createGain(),w=t+k*rnd(.08,.16);o.frequency.setValueAtTime(f0*rnd(.9,1.15),w);o.frequency.exponentialRampToValueAtTime(f0*rnd(1.2,1.6),w+.07);
+    g.gain.setValueAtTime(0,w);g.gain.linearRampToValueAtTime(.025*cfg.vol/100,w+.01);g.gain.exponentialRampToValueAtTime(.0001,w+.09);o.connect(g).connect(A.master);o.start(w);o.stop(w+.12)}}
+// átjáró: csengő ütés
+function sXbell(v){tone(1480,.35,.09*v,'triangle');tone(2960,.2,.03*v,'sine');tone(3950,.12,.015*v,'sine')}
+// MÁV-állomás: háromhangú figyelmeztető dallam a bemondás előtt
+function sRailChime(){[[784,0],[988,.32],[659,.64]].forEach(([f,w])=>{tone(f,1.2,.11,'sine',w);tone(f*2,.5,.03,'sine',w);tone(f*3,.25,.01,'sine',w)})}
+// pneumatikus harmonikaajtó
+function sFoldDoor(close){burst({dur:.35,f:2200,type:'highpass',vol:.08,at:.02});burst({dur:.9,f:700,q:1.5,vol:.05,at:.15,when:.1});tone(close?110:150,.12,.25,'sine',close?1.0:.9);burst({dur:.08,f:400,q:1,vol:.2,when:close?1.0:.9})}
+// légfék: fékezéskor sziszegés, oldáskor fújás
+function sAirBrake(v){burst({dur:.8,f:1800,q:.8,vol:.06*v,at:.05});burst({dur:.4,f:3500,type:'highpass',vol:.04*v})}
+// sebességváltás (Bzmot mechanikus váltó): koppanás, rántás
+function sGear(){tone(70,.16,.3,'sine');burst({dur:.12,f:500,q:1,vol:.18});burst({dur:.25,f:1600,q:2,vol:.04,when:.05})}
+function railAudio(dt){
+  aInitRail();const v=S.v,veh=R.veh,snd=CARS[0].v.snd,day=RD?RD.dl:1,lev=Math.max(0,S.lever-N0),thr=S.doorState==='closed'||R.freight?lev:0;
+  S.rpm=S.rpm===undefined?.25:S.rpm;let tgt=.25+thr*.19;
+  if(veh==='bzmot'){// négyfokozatú mechanikus váltó: a fordulat a sebességgel nő, váltáskor visszaesik
+    const G=[0,5,10.5,16,24];let gi=1;while(gi<4&&v>G[gi])gi++;if(S.gear!==gi){if(S.gear&&thr>0)sGear();S.gear=gi}
+    tgt=thr>0?.35+.65*clamp((v-G[gi-1])/(G[gi]-G[gi-1]),0,1):.25}
+  S.rpm+=(tgt-S.rpm)*Math.min(1,dt*(tgt>S.rpm?1.6:1.1));const rpm=S.rpm;
+  if(snd==='diesel'){const f=17+rpm*34;tp(A.dz1.frequency,f,.05);tp(A.dz2.frequency,f/2,.05);tp(A.dzL.frequency,f/2,.05);tp(A.rtL.frequency,f,.05);
+    tp(A.dzF.frequency,180+rpm*620,.1);tp(A.dzG.gain,.07+.13*rpm,.15);tp(A.exG.gain,.04+.12*rpm*rpm,.15);
+    tp(A.rtG.gain,veh==='m41'?.035+.07*rpm:.01,.2);tp(A.tfG.gain,0,.3);
+    tp(A.motG.gain,veh==='m44'?Math.max(0,S.aCmd)*.06*Math.min(1,v/4):0,.1);tp(A.m1.frequency,30+v*40,.05);tp(A.m2.frequency,60+v*80,.05);tp(A.motF.frequency,300+v*60,.05);tp(A.humG.gain,0,.2)}
+  else{tp(A.dzG.gain,0,.2);tp(A.exG.gain,0,.2);tp(A.rtG.gain,0,.2);tp(A.tfG.gain,snd==='electric'?.018+.05*Math.max(0,S.aCmd):0,.15)}
+  // légsűrítő álló helyzetben, időnként
+  S.cpT=(S.cpT||rnd(10,30))-dt;if(S.cpT<=0){S.cpOn=!S.cpOn;S.cpT=S.cpOn?rnd(8,14):rnd(35,70)}tp(A.cpG.gain,S.cpOn&&v<2?.05:0,.4);
+  // természet: szél, madarak nappal, tücskök éjjel (télen nincsenek)
+  const mo=new Date().getMonth(),warm=mo>=3&&mo<=9;tp(A.wdG.gain,.012+Math.min(.04,v*.0015),.5);tp(A.ckG.gain,warm&&day<.3?.012:0,1);
+  if(day>.4&&Math.random()<dt*(stationAt(S.x)>=0?.5:.18))sBird();
+  // átjárók csengője
+  let xb=0;for(const c of R.xing){const act=S.x>c.x-450&&S.x-TRAIN_L<c.x+8;c.act=act;if(act)xb=Math.max(xb,clamp(1-Math.abs(S.x-c.x)/450,.15,1))}
+  if(xb>0){S.xbT=(S.xbT||0)-dt;if(S.xbT<=0){S.xbT=.55;sXbell(xb)}}
+}
+// vasúti átjáró: út a pályán át, Andrew-kereszt, villogó, sorompó, várakozó autók
+function drawCrossing(c,ppm,railY,X,front){const sx=X(c.x),s=ppm;if(sx<-14*s||sx>W+14*s)return;const lit=RD?1-RD.dl:0,on=c.act,blink=Math.floor(S.t*2.2)%2;
+  if(!front){// az út a pálya mögött és előtt
+    ctx.fillStyle='#4b4a48';ctx.beginPath();ctx.moveTo(sx-3*s,railY-.15*s);ctx.lineTo(sx+3*s,railY-.15*s);ctx.lineTo(sx+2.2*s,railY-1.3*s);ctx.lineTo(sx-2.2*s,railY-1.3*s);ctx.fill();
+    ctx.fillStyle='#5a5856';ctx.fillRect(sx-3*s,railY-.15*s,6*s,.7*s);ctx.fillStyle='#e8e4d8';for(let k=-2;k<=2;k++)ctx.fillRect(sx+k*1.1*s-.1*s,railY+.05*s,.2*s,.35*s);
+    // túloldali jelzőoszlop és sorompó
+    post(sx+2.8*s,railY-1.3*s,.8,on);return}
+  ctx.fillStyle='#55534f';ctx.beginPath();ctx.moveTo(sx-3*s,railY+.55*s);ctx.lineTo(sx+3*s,railY+.55*s);ctx.lineTo(sx+4.5*s,H);ctx.lineTo(sx-4.5*s,H);ctx.fill();
+  ctx.fillStyle='#e8e4d8';for(let y=railY+1.2*s;y<H;y+=1.4*s)ctx.fillRect(sx-.08*s,y,.16*s,.7*s);
+  post(sx-3.4*s,railY+1.6*s,1,on);
+  if(on){for(let k=0;k<2;k++){const cx=sx-(5.5+k*4.6)*s,cy=railY+2.2*s+k*.3*s;ctx.fillStyle=['#7a2a22','#2d4f7a'][k];rr(cx-1.9*s,cy-1.1*s,3.8*s,.75*s,.25*s);ctx.fill();rr(cx-1.2*s,cy-1.55*s,2.2*s,.55*s,.2*s);ctx.fill();
+    ctx.fillStyle='rgba(170,200,220,.6)';ctx.fillRect(cx-1.05*s,cy-1.48*s,.9*s,.4*s);ctx.fillRect(cx,cy-1.48*s,.85*s,.4*s);ctx.fillStyle='#151617';for(const dx of[-1.2,1.2]){ctx.beginPath();ctx.arc(cx+dx*s,cy-.35*s,.3*s,0,7);ctx.fill()}
+    if(lit>.3){ctx.fillStyle='rgba(255,60,40,.9)';ctx.fillRect(cx-1.9*s,cy-.95*s,.15*s,.2*s)}}}
+  function post(px,py,k,on){const ss=s*k;ctx.fillStyle='#e9e6dc';ctx.fillRect(px-.06*ss,py-3.4*ss,.12*ss,3.4*ss);
+    ctx.save();ctx.translate(px,py-3.3*ss);for(const a of[.6,-.6]){ctx.save();ctx.rotate(a);ctx.fillStyle='#f4f1e8';ctx.fillRect(-.75*ss,-.1*ss,1.5*ss,.2*ss);ctx.fillStyle='#c8281e';ctx.fillRect(-.75*ss,-.1*ss,.3*ss,.2*ss);ctx.fillRect(-.15*ss,-.1*ss,.3*ss,.2*ss);ctx.fillRect(.45*ss,-.1*ss,.3*ss,.2*ss);ctx.restore()}ctx.restore();
+    ctx.fillStyle='#111';rr(px-.55*ss,py-2.55*ss,1.1*ss,.4*ss,.15*ss);ctx.fill();
+    for(const[dx,ph]of[[-.3,0],[.3,1]]){const lon=on&&blink===ph;ctx.fillStyle=lon?'#ff3a24':'#3a0d0a';ctx.beginPath();ctx.arc(px+dx*ss,py-2.35*ss,.13*ss,0,7);ctx.fill();
+      if(lon){const rg=ctx.createRadialGradient(px+dx*ss,py-2.35*ss,0,px+dx*ss,py-2.35*ss,1.2*ss);rg.addColorStop(0,'rgba(255,60,30,.5)');rg.addColorStop(1,'rgba(255,60,30,0)');ctx.fillStyle=rg;ctx.fillRect(px+dx*ss-1.2*ss,py-3.55*ss,2.4*ss,2.4*ss)}}
+    // sorompókar: piros-fehér, leengedve vízszintes
+    const ang=on?0:-1.35;ctx.save();ctx.translate(px+.15*ss,py-1.0*ss);ctx.rotate(ang);for(let k=0;k<6;k++){ctx.fillStyle=k%2?'#f4f1e8':'#c8281e';ctx.fillRect(k*.5*ss,-.07*ss,.5*ss,.14*ss)}ctx.restore();
+    ctx.fillStyle='#3a3d40';ctx.fillRect(px-.15*ss,py-1.2*ss,.35*ss,.4*ss)}
 }
 
 /* ---------- fizika és logika ---------- */
@@ -876,6 +961,7 @@ function setLever(i){
   i=clamp(i,0,LV.length-1);if(i===S.lever)return;
   if(i===0&&!S.eb&&S.v>1){S.eb=true;if(S.inc)toast('Vészfékezés – indokolt, nincs pontlevonás','good');else{S.score-=40;toast('Vészfékezés! −40 pont','bad')}sPssh(.2);vib(250)}
   if(S.lever<N0&&i>=N0&&S.v<.1)sPssh(.08);
+  if(R&&R.rail&&S.v>.5){if(i<N0&&i<S.lever)sAirBrake(i===0?1.6:1);else if(S.lever<N0&&i>=N0)sPssh(.06)}
   S.lever=i;sLever();updLever();
 }
 function step(dt){
@@ -919,12 +1005,13 @@ function step(dt){
   // RK kapcsolóhenger kattogás
   if(S.aCmd>.2&&S.v<13&&S.dir>0&&(!R.rail||R.veh==='v43')){S.rk-=dt;if(S.rk<=0){sRk();S.rk=.24+S.v*.03}}
   // sínillesztések
-  if(S.v>.3){const ax=axles(),vol=Math.min(1,S.v/12)*.45;ax.forEach((o,i)=>{const idx=Math.floor((S.x-o)/JOINT);if(idx!==S.ax[i]){S.ax[i]=idx;sClack(vol*(1-o/TRAIN_L*.6));bump(i)}})}
+  if(S.v>.3){const ax=axles(),vol=Math.min(1,S.v/12)*.45;ax.forEach((o,i)=>{const idx=Math.floor((S.x-o)/JOINT);if(idx!==S.ax[i]){S.ax[i]=idx;sClack(vol*(1-o/TRAIN_L*.6)*(R.freight?1.25:1));if(R.freight&&Math.random()<.25)tone(rnd(1800,2600),.09,.012*vol,'triangle');bump(i)}})}
   const sv=Math.min(1,S.v/20);
   for(const c of S.car){c.vy+=(-100*c.y-4.8*c.vy+(Math.random()-.5)*6*sv)*dt;c.y+=c.vy*dt;
     c.va+=(-150*(c.a+S.aCmd*.003)-5*c.va+(Math.random()-.5)*.1*sv)*dt;c.a+=c.va*dt}
 
   for(let i=0;i<R.n;i++)if(!S.spawned[i]&&R.P[i]-S.x<650)spawnStation(i);
+  if(R.rail)for(const c of R.xing){if(!c.done&&S.x>c.x){c.done=true;if(S.hornX!==undefined&&S.hornX>c.x-600&&S.hornX<c.x-20){S.score+=10;toast('Hangjelzés az átjáró előtt +10','good')}}}
 
   // ajtók
   if(S.doorState==='opening'){S.doors=Math.min(1,S.doors+dt/1.8);if(S.doors>=1)S.doorState='open'}
@@ -1295,11 +1382,11 @@ function render(dt){
       ctx.drawImage(spr,px,py,cw,ch);if(v.board&&ppm>10)drawBoard(v,px,py,ppm);ctx.restore()}
     else{ctx.fillStyle='#3d6c95';ctx.fillRect(px,py+ch*.12,cw,ch*.62)}
     if(S.doors>0)DOORL.forEach((d,i)=>{if(d.k===k)drawDoor(i,ppm,railY,X,lit)});ctx.restore()}
-  if(R.rail){railCouplers(ppm,railY,X);railHeadlight(ppm,railY,X)}else{drawCouplers(ppm,railY,X);drawHeadlight(ppm,railY,X)}
+  if(R.rail){railCouplers(ppm,railY,X)}else{drawCouplers(ppm,railY,X);drawHeadlight(ppm,railY,X)}
   // vészfék: izzó kerekek
   if(S.ebOn){ctx.save();ctx.globalCompositeOperation='lighter';for(const o of axles()){const sx=X(S.x-o),sy=railY-.1*ppm;if(sx<-20||sx>W+20)continue;
     const rg=ctx.createRadialGradient(sx,sy,0,sx,sy,.9*ppm);rg.addColorStop(0,`rgba(255,150,40,${.35+Math.random()*.2})`);rg.addColorStop(1,'rgba(255,90,20,0)');ctx.fillStyle=rg;ctx.fillRect(sx-ppm,sy-ppm,2*ppm,2*ppm)}ctx.restore()}
-  if(R.rail)railTail(ppm,railY,X);else{
+  if(R.rail){}else{
   const rx=X(S.x-TRAIN_L)+.25*ppm;for(const yp of[222,42]){const yy=railY-(SPR_H-yp)*MPP*ppm;
     const rg=ctx.createRadialGradient(rx,yy,0,rx,yy,1.2*ppm);rg.addColorStop(0,'rgba(255,50,40,.55)');rg.addColorStop(1,'rgba(255,50,40,0)');ctx.fillStyle=rg;ctx.fillRect(rx-1.2*ppm,yy-1.2*ppm,2.4*ppm,2.4*ppm)}
   }
@@ -1313,7 +1400,7 @@ function render(dt){
   for(const i of visSt)(R.rail?drawRailLife:drawPlatformLife)(i,ppm,platTop,bandR,X,false);
   for(let i=0;i<R.n;i++){const P=R.P[i];if(P>vx0&&P<vx1+3)drawStopSign(X(P+.4),platTop,ppm)}
   drawIncident(ppm,platTop,bandR,X);
-  if(R.rail){drawSmoke(ppm,railY,X);railNight(ppm,railY,platTop,X,vx0,vx1)}
+  if(R.rail){for(const c of R.xing)drawCrossing(c,ppm,railY,X,true);drawSmoke(ppm,railY,X);railNight(ppm,railY,platTop,X,vx0,vx1);railHeadlight(ppm,railY,X);railTail(ppm,railY,X)}
   ctx.globalAlpha=1;
   drawFx(ppm,railY,X);
   if(!eco()){const vg=ctx.createRadialGradient(W/2,H*.55,Math.min(W,H)*.35,W/2,H*.55,Math.max(W,H)*.75);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.5)');ctx.fillStyle=vg;ctx.fillRect(0,0,W,H)}
@@ -1456,6 +1543,7 @@ function buildRailWorld(R){
     if(k>0)sig.push({x:P-PLAT_A-260,st:k,kind:'entry'});
     if(k<R.n-1){const a=P+600,b=R.P[k+1]-PLAT_A-700;for(let x=a+200;x<b;x+=1100+hash(k*9+x)*500)sig.push({x,kind:'block'})}}
   sig.sort((a,b)=>a.x-b.x);R.sig=sig;R.feat=[];
+  R.xing=[];for(let k=0;k<R.n-1;k++){const a=R.P[k]+PLAT_B+250,b=R.P[k+1]-PLAT_A-350;if(b-a<500)continue;const n=b-a>2600?2:1;for(let j=0;j<n;j++)R.xing.push({x:Math.round(a+(b-a)*(j+.3+.4*hash(k*5+j+R.n))/n),act:false,done:false})}
   R.decor=R.P.map((P,i)=>({bld:P-Math.min(PLAT_A-14,TRAIN_L*.5),bench:[P-PLAT_A*.3,P-PLAT_A*.62].map(x=>x+hash(i*7+x)*2),lamps:[],poster:hash(i*17)}));
   R.decor.forEach((D,i)=>{const P=R.P[i];for(let x=P-PLAT_A+6;x<P+PLAT_B;x+=24)D.lamps.push(x)});
 }
@@ -1540,11 +1628,12 @@ function railBG(ppm,railY,X,vx0,vx1,camX){
   if(ppm>4){ctx.fillStyle=rgb(mix([150,146,138],[40,40,42],lit));for(let x=Math.floor(vx0/.6)*.6;x<vx1;x+=.6)ctx.fillRect(X(x),railY-.16*ppm,.26*ppm,.14*ppm)}
   ctx.fillStyle='#5e5850';ctx.fillRect(0,railY-.17*ppm,W,Math.max(2,.12*ppm));ctx.fillStyle=rgb(mix([196,192,184],[90,92,98],lit));ctx.fillRect(0,railY-.17*ppm,W,1);
   const gc=rgb(mix([62,88,40],[14,20,18],lit)),fl=['#e8d24a','#f2efe6','#c04a8a','#e07a2a'];
-  for(let x=Math.floor(vx0/1.7)*1.7;x<vx1;x+=1.7){const h=hash(x*.61+3),y=railY+(.9+h*Math.max(2,(H-railY)/ppm-1.2))*ppm;if(y>H+4)continue;const sx=X(x),hh=(.25+h*.35)*ppm;
+  for(let x=Math.floor(vx0/1.7)*1.7;!eco()&&x<vx1;x+=1.7){const h=hash(x*.61+3),y=railY+(.9+h*Math.max(2,(H-railY)/ppm-1.2))*ppm;if(y>H+4)continue;const sx=X(x),hh=(.25+h*.35)*ppm;
     ctx.strokeStyle=gc;ctx.lineWidth=Math.max(1,.04*ppm);ctx.beginPath();ctx.moveTo(sx,y);ctx.lineTo(sx-.12*ppm,y-hh);ctx.moveTo(sx,y);ctx.lineTo(sx+.05*ppm,y-hh*1.2);ctx.moveTo(sx,y);ctx.lineTo(sx+.18*ppm,y-hh*.8);ctx.stroke();
     if(h>.82&&lit<.6){ctx.fillStyle=fl[(h*97|0)%4];ctx.fillRect(sx+.03*ppm,y-hh*1.25,Math.max(1.5,.09*ppm),Math.max(1.5,.09*ppm))}}
   for(let x=Math.ceil(vx0/100)*100;x<vx1;x+=100){const sx=X(x)-.7*ppm,y=railY+.75*ppm;ctx.fillStyle=rgb(mix([226,222,210],[60,62,66],lit));ctx.fillRect(sx,y-.6*ppm,.32*ppm,.6*ppm);
     if(ppm>9){ctx.fillStyle='#222';ctx.font=`600 ${.16*ppm}px IBM Plex Mono, monospace`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(Math.round((x+R.km0)/100)%10),sx+.16*ppm,y-.38*ppm)}}
+  for(const c of R.xing)drawCrossing(c,ppm,railY,X,false);
 }
 // állomás: felvételi épület, peronlámpák, névtábla
 function drawRailStation(i,ppm,railY,X){
@@ -1596,6 +1685,7 @@ function railNight(ppm,railY,platTop,X,vx0,vx1){
   for(const c of CARS){const v=c.v;if(!v.wins)continue;const left=S.x-c.off-v.L;if(left>vx1||left+v.L<vx0)continue;
     for(const[w0,w1]of v.wins){const a0=c.flip?v.L-w1:w0,x=X(left+a0),w=(w1-w0)*ppm,y=railY-(v.H-v.winT)*ppm,h=(v.winB-v.winT)*ppm;ctx.fillStyle=`rgba(255,214,150,${.32*a})`;ctx.fillRect(x,y,w,h)}}
   railSigGlow(ppm,railY,X,vx0,vx1);
+  if(Math.floor(S.t*2.2)%2===0)for(const c of R.xing){if(!c.act)continue;for(const[px,py]of[[X(c.x)+2.8*ppm,railY-3.65*ppm],[X(c.x)-3.4*ppm,railY-.75*ppm]]){const rg=ctx.createRadialGradient(px,py,0,px,py,2.5*ppm);rg.addColorStop(0,`rgba(255,60,30,${.6*a})`);rg.addColorStop(1,'rgba(255,60,30,0)');ctx.fillStyle=rg;ctx.fillRect(px-2.5*ppm,py-2.5*ppm,5*ppm,5*ppm)}}
   ctx.restore();
 }
 function railHeadlight(ppm,railY,X){
@@ -1674,7 +1764,7 @@ let hudT=0;
 function updHud(){
   const kmh=S.v*3.6;$('spd').innerHTML=`${Math.round(kmh)}<small>km/h</small>`;
   [...$('ars').children].forEach(s=>{const v=+s.dataset.v;s.className=v===S.lim?(S.ars.over?'over':'on'):''});
-  const nl=S.dir>0?nextLimit(S.x):null;$('pre').textContent=nl?`Előjelzés ${nl.l} · ${Math.round(nl.a-S.x)} m`:'';
+  const nl=S.dir>0?nextLimit(S.x):null,nx=R.rail&&S.dir>0?R.xing.find(c=>!c.done&&c.x>S.x&&c.x-S.x<700):null;$('pre').textContent=nl?`Előjelzés ${nl.l} · ${Math.round(nl.a-S.x)} m`:nx?`Átjáró ${Math.round(nx.x-S.x)} m · kürt (H)`:'';
   let e=null,lbl,dist='',sch='',dl='',cls='';
   if(S.cur>=0&&!S.departed[S.cur]){e=R.st[S.cur];lbl=S.cur===R.n-1?'Végállomás':'Állomáson';
     if(S.cur<R.n-1){const d=S.t-R.dep[S.cur];sch='Ind. '+clockStr(R.dep[S.cur]);dl=d<0?'még '+mmss(d):'késés +'+mmss(d);cls=d<0?'ok':d<20?'warn':'bad';
@@ -1695,7 +1785,7 @@ function updHud(){
   for(let i=0;i<R.n;i++){const d=$('pd'+i);if(d)d.classList.toggle('done',!!S.served[i])}
 }
 
-const APP_VER='2026.11.09-2',SHARE_URL='https://m3metro.vercel.app';
+const APP_VER='2026.11.09-3',SHARE_URL='https://m3metro.vercel.app';
 /* ---------- QR-kód generátor (bájt mód, M szint, 1–10. verzió) ---------- */
 const QR=(()=>{
   const ECC=[-1,10,16,26,18,24,16,18,22,22,26],NB=[-1,1,1,1,2,2,4,4,4,5,5];
@@ -1955,7 +2045,7 @@ function showHelp(back){
    <b>↑ / ↓</b><span>kontroller fel / le</span><b>Szóköz</b><span>ajtók nyitása / zárása</span><b>H</b><span>kürt</span><b>R / nyíl ikon</b><span>irányváltó álló helyzetben; a nyíl mutatja a menetirányt (zöld: előre, sárga: hátra)</span><b>112</b><span>segélyhívás vészhelyzetben (személy a vágányon)</span><b>Esc / P</b><span>szünet menü</span></div>
    <div class="help"><b>C / Kamera</b><span>nézet: Menet → Fülke → Szerelvény → Hátra</span><b>+ / −, csippentés</b><span>nagyítás, kicsinyítés</span><b>húzás</b><span>a kép elmozgatása előre-hátra</span><b>dupla koppintás</b><span>vissza a vonathoz</span><b>egérgörgő</b><span>nagyítás</span></div>
    <p class="full">Állj meg a megállási jelnél, nyisd ki az ajtókat, várd meg az utascserét, zárd az ajtókat, és indulj a menetrend szerinti időben. A metróban a sebességet az ARS, a felszíni vasúton az EVM felügyeli; a sárga táblán a lassújel sebessége áll tízes egységben (6 = 60 km/h).</p>
-   <p class="full">Felszíni vasút: a vonatok nehezebbek, lassabban gyorsulnak és fékeznek – kezdd el időben a fékezést. Tehervonattal a megállási jelnél a Megállás gombbal jelentkezz, majd a menetrend szerinti időben az Indulás gombbal indulj. A forgalmi szolgálattevő zöld tárcsával jelzi, ha indulhatsz.</p>
+   <p class="full">Felszíni vasút: a vonatok nehezebbek, lassabban gyorsulnak és fékeznek – kezdd el időben a fékezést. Tehervonattal a megállási jelnél a Megállás gombbal jelentkezz, majd a menetrend szerinti időben az Indulás gombbal indulj. A forgalmi szolgálattevő zöld tárcsával jelzi, ha indulhatsz. Vasúti átjáró előtt adj hangjelzést a kürttel (H) – ezért +10 pont jár.</p>
    <button class="mbtn full" id="hBack">Vissza</button></div>`);
   $('hBack').onclick=back;
 }
