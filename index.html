@@ -1054,7 +1054,7 @@ function buildRoute(ri,short){
   for(let k=0;k<st.length;k++){zones.push({a:P[k]-125,b:P[k]+10,l:60});gaps.push({a:P[k]-153,b:P[k]-150.6},{a:P[k]+16,b:P[k]+18.4})}
   for(let k=0;k<st.length-1;k++){const d=P[k+1]-P[k];
     if(d>600){const h=hash(k*7+st.length);const m=P[k]+d*(0.38+0.24*h),len=140+h*120;zones.push({a:m-len/2,b:m+len/2,l:h>0.5?60:70})}
-    let x=P[k]+60,j=0;while(true){x+=170+hash(k*13+j++)*260;if(x>P[k+1]-200)break;gaps.push({a:x,b:x+2.3})}}
+    let x=P[k]+60,j=0;while(true){x+=170+hash(k*13+j++)*260;if(!(x<=P[k+1]-200)||j>5000)break;gaps.push({a:x,b:x+2.3})}}
   }
   gaps.sort((a,b)=>a.a-b.a);
   const RR={name:r.n,st,P,arr,dep,zones,gaps,n:st.length,len:P[P.length-1],rail,veh:ck[0],scen:r.scen,vmax,elec:!!r.elec,freight:!!r.freight,sys:rail?'EVM':'ARS'};
@@ -1540,7 +1540,7 @@ function buildWorld(R){
     if(k>0)sig.push({x:P-165,st:k,kind:'entry'});
     if(k<R.n-1){const a=P+40,b=R.P[k+1]-175;
       for(let x=a+320;x<b-120;x+=340+hash(k*5+x)*140)sig.push({x,kind:'block'});
-      let x=a+30,j=0;while(true){x+=90+hash(k*31+j*7)*220;j++;if(x>b-20)break;const h=hash(k*97+j*13);
+      let x=a+30,j=0;while(true){x+=90+hash(k*31+j*7)*220;j++;if(!(x<=b-20)||j>5000)break;const h=hash(k*97+j*13);
         const type=h<.22?'sealed':h<.45?'door':h<.58?'fig':h<.8?'phone':'ladder';feat.push({x,type,h:hash(k*53+j*3),gone:false})}}}
   sig.sort((a,b)=>a.x-b.x);feat.sort((a,b)=>a.x-b.x);
   R.feat=feat;R.sig=sig;
@@ -2464,7 +2464,7 @@ function updHud(){
   for(let i=0;i<R.n;i++){const d=$('pd'+i);if(d)d.classList.toggle('done',!!S.served[i])}
 }
 
-const APP_VER='2026.11.10-2',SHARE_URL='https://m3metro.vercel.app';
+const APP_VER='2026.11.10-3',SHARE_URL='https://m3metro.vercel.app';
 /* ---------- QR-kód generátor (bájt mód, M szint, 1–10. verzió) ---------- */
 const QR=(()=>{
   const ECC=[-1,10,16,26,18,24,16,18,22,22,26],NB=[-1,1,1,1,2,2,4,4,4,5,5];
@@ -2869,10 +2869,29 @@ cv.addEventListener('contextrestored',resize);addEventListener('pageshow',resize
 
 let last=performance.now();
 let audT=0;
-function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;if(!ov.hidden)try{menuScene();garScene()}catch(e){}
+// hibafigyelő és FPS-mérő: a képkocka hibáit elkapja (a játék nem áll meg), a hibákat és a hosszú akadásokat naplózza
+const DBG={log:[],fps:0,n:0,t0:0,prev:0,err:0,lag:0,open:false};
+function dbgLog(k,m){DBG.log.push({t:new Date().toTimeString().slice(0,8),k,m:String(m).slice(0,600)});if(DBG.log.length>300)DBG.log.shift();if(k!=='AKADÁS')DBG.err++;dbgUi()}
+function dbgErr(e,where){dbgLog('HIBA',(where?where+': ':'')+(e&&e.message?e.message:e)+(e&&e.stack?' | '+e.stack.split('\n').slice(1,3).join(' ').replace(/\s+/g,' '):''))}
+addEventListener('error',e=>dbgLog('JS',(e.message||'')+' ('+String(e.filename||'').split('/').pop()+':'+e.lineno+')'));
+addEventListener('unhandledrejection',e=>dbgLog('PROM',(e.reason&&e.reason.message)||e.reason));
+function dbgFrame(now){DBG.n++;if(!DBG.t0)DBG.t0=now;if(now-DBG.t0>=1000){DBG.fps=Math.round(DBG.n*1000/(now-DBG.t0));DBG.n=0;DBG.t0=now;dbgUi()}
+  if(DBG.prev&&now-DBG.prev>250){DBG.lag++;dbgLog('AKADÁS',Math.round(now-DBG.prev)+' ms szünet'+(S?' · sebesség '+S.v.toFixed(1)+' m/s':'')+(paused?' · szünetben':''))}DBG.prev=now}
+function dbgUi(){const b=document.getElementById('dbgB');if(!b)return;b.textContent='FPS '+DBG.fps+' · hiba '+DBG.err+(DBG.lag?' · akadás '+DBG.lag:'');if(DBG.open)dbgPanel()}
+function dbgPanel(){let P=document.getElementById('dbgP');if(!P){P=document.createElement('div');P.id='dbgP';P.style.cssText='position:fixed;inset:6px;z-index:100000;background:#0c0f0e;color:#dfe7e2;border:1px solid #2f3a36;border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;font:12px/1.35 monospace';
+  P.innerHTML='<div style="display:flex;gap:6px;flex-wrap:wrap"><b style="flex:1">Hibanapló</b><button id="dbgCopy">Másolás</button><button id="dbgClr">Törlés</button><button id="dbgX">Bezárás</button></div><pre id="dbgT" style="flex:1;overflow:auto;margin:0;white-space:pre-wrap;word-break:break-word"></pre>';
+  document.body.appendChild(P);
+  $('dbgX').onclick=()=>{DBG.open=false;P.remove()};$('dbgClr').onclick=()=>{DBG.log=[];DBG.err=0;DBG.lag=0;dbgPanel();dbgUi()};
+  $('dbgCopy').onclick=()=>{const t=dbgText();navigator.clipboard?navigator.clipboard.writeText(t).then(()=>toast('Napló másolva','good'),()=>toast('Másolás nem sikerült','bad')):toast('Másolás nem támogatott','bad')}}
+  const T=document.getElementById('dbgT');if(T)T.textContent=dbgText()}
+function dbgText(){return `FPS ${DBG.fps} · ${navigator.userAgent.slice(0,120)} · ${innerWidth}x${innerHeight}\n`+DBG.log.map(e=>e.t+' '+e.k+' '+e.m).join('\n')}
+function dbgInit(){const b=document.createElement('div');b.id='dbgB';b.style.cssText='position:fixed;right:6px;bottom:6px;z-index:99999;font:600 11px/1 monospace;background:rgba(0,0,0,.6);color:#9fe3b5;padding:5px 7px;border-radius:6px;border:1px solid rgba(255,255,255,.15);cursor:pointer;user-select:none';
+  b.onclick=()=>{DBG.open=!DBG.open;if(DBG.open)dbgPanel();else{const P=document.getElementById('dbgP');if(P)P.remove()}};document.body.appendChild(b);dbgUi()}
+function frame(now){try{dbgFrame(now)}catch(e){}try{frame0(now)}catch(e){dbgErr(e,'képkocka')}requestAnimationFrame(frame)}
+function frame0(now){const dt=Math.min(.05,(now-last)/1000);last=now;if(!ov.hidden)try{menuScene();garScene()}catch(e){}
   if(S){if(!paused){const eb=step(dt);audT-=dt;if(audT<=0){audT=1/25;audioUpdate(eb)}}render(dt);hudT-=dt;if(hudT<=0){updHud();hudT=.08}}
-  requestAnimationFrame(frame)}
-for(const k in ESC)delete ESC[k];reset();resize();setCam(cam.mode);showMain();bootDeepLink();requestAnimationFrame(frame);
+}
+for(const k in ESC)delete ESC[k];reset();resize();setCam(cam.mode);showMain();bootDeepLink();dbgInit();requestAnimationFrame(frame);
 </script>
 
 <script>if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').then(r=>{navigator.serviceWorker.ready.then(()=>{try{offlineStatus()}catch(e){}})}).catch(()=>{}));</script>
