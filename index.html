@@ -2464,7 +2464,7 @@ function updHud(){
   for(let i=0;i<R.n;i++){const d=$('pd'+i);if(d)d.classList.toggle('done',!!S.served[i])}
 }
 
-const APP_VER='2026.11.10-1',SHARE_URL='https://m3metro.vercel.app';
+const APP_VER='2026.11.10-2',SHARE_URL='https://m3metro.vercel.app';
 /* ---------- QR-kód generátor (bájt mód, M szint, 1–10. verzió) ---------- */
 const QR=(()=>{
   const ECC=[-1,10,16,26,18,24,16,18,22,22,26],NB=[-1,1,1,1,2,2,4,4,4,5,5];
@@ -2665,6 +2665,9 @@ function showShare(back){
     <div id="shLink" style="font-family:var(--mono);font-size:15px;padding:10px;border:1px solid #2f3a36;border-radius:6px;background:#0f1312;user-select:all;-webkit-user-select:all;word-break:break-all">${LINK}</div>
     <div style="display:flex;gap:7px;flex-wrap:wrap"><button class="mbtn pri" id="shCopy" style="flex:1">Link másolása</button>${navigator.share?'<button class="mbtn" id="shSys" style="flex:1">Küldés…</button>':''}</div>
     <p class="note" id="shMsg"></p></div>
+   <div style="border-top:1px solid #2f3a36;padding-top:10px"><p class="note" style="margin:0 0 8px">Játék letöltése másik eszközre (laptop, tablet, telefon) – egyetlen fájl, internet nélkül is fut:</p>
+    <div style="display:flex;gap:7px;flex-wrap:wrap"><button class="mbtn pri" id="shDl" style="flex:1">Játék letöltése (.html)</button>${navigator.canShare?'<button class="mbtn" id="shFile" style="flex:1">Fájl küldése…</button>':''}</div>
+    <p class="note" style="margin:8px 0 0">Androidra telepíthető APK is készül: a GitHub „Releases” oldalán.</p></div>
    <button class="mbtn full" id="shBack">Vissza</button></div>`);
   try{const M=QR.make(LINK),c=$('qrC'),x=c.getContext('2d'),n=M.length,q=4,s=Math.floor(c.width/(n+2*q)),o=Math.floor((c.width-s*n)/2);
     x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.fillStyle='#0c0f0e';M.forEach((r,y)=>r.forEach((b,xx)=>{if(b)x.fillRect(o+xx*s,o+y*s,s,s)}))}catch(e){}
@@ -2672,6 +2675,13 @@ function showShare(back){
   $('shCopy').onclick=()=>{const ok=()=>{$('shMsg').textContent='Link a vágólapon – illeszd be üzenetbe.';toast('Link másolva','good')};
     try{navigator.clipboard.writeText(LINK).then(ok,()=>{sel();$('shMsg').textContent='Kijelöltem a linket – másold ki hosszan nyomva.'})}catch(e){sel();$('shMsg').textContent='Kijelöltem a linket – másold ki hosszan nyomva.'}};
   if(navigator.share)$('shSys').onclick=()=>navigator.share({title:'M3 Metró Szimulátor',text:'Kihívás a M3 Metró Szimulátorban – kód: '+CODE,url:LINK}).catch(()=>{});
+  // a teljes játék egyetlen fájlban: index.html (grafika, hang, pálya inline), másik eszközön nyitható
+  const gameFile=async()=>{const r=await fetch('./index.html',{cache:'no-store'});if(!r.ok)throw new Error('http');return new File([await r.text()],`m3-metro-szimulator-v${APP_VER}.html`,{type:'text/html'})};
+  $('shDl').onclick=async()=>{try{const f=await gameFile(),u=URL.createObjectURL(f),a=document.createElement('a');a.href=u;a.download=f.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),5000);
+      $('shMsg').textContent='Letöltve: '+f.name+'. Másold át a másik eszközre, és nyisd meg a böngészőben.'}
+    catch(e){$('shMsg').textContent='A fájl most nem tölthető le. Nyisd meg a játékot netkapcsolattal, és próbáld újra.'}};
+  if($('shFile'))$('shFile').onclick=async()=>{try{const f=await gameFile();if(!navigator.canShare({files:[f]}))throw 0;await navigator.share({files:[f],title:'M3 Metró Szimulátor',text:'M3 Metró Szimulátor v'+APP_VER})}
+    catch(e){if(e&&e.name!=='AbortError')$('shMsg').textContent='Ez a böngésző nem tud fájlt küldeni – használd a letöltést.'}};
   $('shCopyCode').onclick=e=>copyText(CODE,e.currentTarget);
   $('shBack').onclick=back;
 }
