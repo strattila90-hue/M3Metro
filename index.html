@@ -699,6 +699,9 @@ function drawMetroBogies(g,px,py,sc,dk){const K=h=>dk?shade(h,-.45):h;g.save();g
       const mx=w+inn*48;box(mx-13,227,26,11,3,'#5c6165','#25282b',.5);
       g.strokeStyle='rgba(0,0,0,.4)';g.lineWidth=.45;for(let i=0;i<6;i++){const x=mx-10+i*4;g.beginPath();g.moveTo(x,229);g.lineTo(x,236.5);g.stroke()}}}
   g.restore()}
+// a futómű-réteg egyszer készül el (sötét és világos változat), futás közben csak rárajzoljuk
+const MB_IMG={};
+function metroBogieImg(dk){const k=dk?1:0;if(MB_IMG[k])return MB_IMG[k];const c=document.createElement('canvas');c.width=SPR_W*2;c.height=SPR_H*2;const g=c.getContext('2d');g.scale(2,2);drawMetroBogies(g,0,0,1,dk);return MB_IMG[k]=c}
 function veh(k){if(k==='metro')return VEHC.metro||(VEHC.metro=metroCar());if(!VEHC[k]){VREC=[];let v;try{v=VEHB[k]()}finally{v&&(v.wl=VREC);VREC=null}Object.assign(v,vFinish(v.cv));VEHC[k]=v}return VEHC[k]}
 const CONSISTS={eu:['eu','eu_t','tep','sovo','tep2'],m424:['m424','m424_t','mavg','mavo'],br52:['br52','br52_t','g10','om'],metro:['metro','metro','metro','metro','metro'],bzmot:['bzmot','btx'],m41:['m41','bhv','bhv','bhv'],v43:['v43','bhv','bhv','bhv','bhv'],m44:['m44','eas1','eas2','zaes1','zaes2','zaes1','gbs1','eas1']};
 const VNAME={metro:'81-717 metró',bzmot:'Bzmot motorvonat',m41:'M41 „Csörgő”',v43:'V43 „Szili” (Papagáj)',m44:'M44 „Bobó”'};
@@ -833,7 +836,7 @@ function garScene(){const c=$('gcv');if(!c||!GAR)return;const now=performance.no
   g.fillStyle=rgb(mix([128,120,108],[34,34,36],lit));g.fillRect(0,ry-.1*ppm,w,.5*ppm);g.fillStyle=rgb(mix([150,146,138],[40,40,42],lit));for(let x=0;x<w;x+=.6*ppm)g.fillRect(x,ry-.15*ppm,.26*ppm,.12*ppm);g.fillStyle='#5e5850';g.fillRect(0,ry-.17*ppm,w,.1*ppm);
   GAR.slide*=Math.exp(-dt*5);const front=w*.86/ppm+GAR.slide*w*.6/ppm;
   for(const o of list){const v=o.v,x=(front-o.off-v.L)*ppm;if(x>w||x+v.L*ppm<0)continue;
-    if(v.metro){if(sprOK(img))g.drawImage(img,x,ry-CAR_H*ppm,v.L*ppm,CAR_H*ppm);drawMetroBogies(g,x,ry-CAR_H*ppm,v.L*ppm/SPR_W,false)}else{const im=v.img||v.cv;if(im){drawVehWheels(g,v,x,ry-v.H*ppm,ppm,'back',front,0,false,0);g.drawImage(im,x,ry-v.H*ppm,v.L*ppm,v.H*ppm);drawVehWheels(g,v,x,ry-v.H*ppm,ppm,'front',front,0,false,0)}}}
+    if(v.metro){if(sprOK(img))g.drawImage(img,x,ry-CAR_H*ppm,v.L*ppm,CAR_H*ppm);g.drawImage(metroBogieImg(false),x,ry-CAR_H*ppm,v.L*ppm,CAR_H*ppm)}else{const im=v.img||v.cv;if(im){drawVehWheels(g,v,x,ry-v.H*ppm,ppm,'back',front,0,false,0);g.drawImage(im,x,ry-v.H*ppm,v.L*ppm,v.H*ppm);drawVehWheels(g,v,x,ry-v.H*ppm,ppm,'front',front,0,false,0)}}}
   if(lit>.05){g.save();g.globalCompositeOperation='multiply';g.fillStyle=rgb(nightTint(D));g.fillRect(0,0,w,h);g.restore()}
   GAR.blink=Math.max(0,GAR.blink-dt);const lon=GAR.light||GAR.blink>0||lit>.4,v0=list[0].v;
   if(lon){const hx=front*ppm,hy=ry-(v0.headH||1.8)*ppm;g.save();g.globalCompositeOperation='lighter';if(GAR.light||lit>.4){const lg=g.createLinearGradient(hx,0,w,0);lg.addColorStop(0,'rgba(255,240,205,.35)');lg.addColorStop(1,'rgba(255,240,205,0)');g.fillStyle=lg;g.beginPath();g.moveTo(hx,hy-.1*ppm);g.lineTo(w,ry-4*ppm);g.lineTo(w,ry+.3*ppm);g.lineTo(hx,hy+.1*ppm);g.fill()}
@@ -1681,7 +1684,7 @@ function buildSprites(){try{const c=document.createElement('canvas');c.width=SPR
 img.onload=buildSprites;if(img.complete&&img.naturalWidth)buildSprites();
 const sprOK=s=>s&&s.complete&&s.naturalWidth>0;
 const eco=()=>cfg.gfx==='eco';
-function camPPM(){const m=cam.mode,base=m==='szer'?W/(TRAIN_L+14):W/(R&&R.rail?100:72);return clamp(base*cam.z[m],2,H*.6)}
+function camPPM(){const m=cam.mode,base=m==='szer'?W/(TRAIN_L+14):W/(R&&R.rail?(W<700?62:100):72);return clamp(base*cam.z[m],2,H*.6)}
 function camTarget(ppm){const vw=W/ppm,m=cam.mode;
   if(m==='fulke')return S.x-vw*.62;
   if(m==='szer')return S.x-TRAIN_L/2-vw/2;
@@ -1733,7 +1736,7 @@ function render(dt){
     if(v.metro?sprOK(spr):!!spr){ctx.save();if(c.flip){ctx.translate(px*2+cw,0);ctx.scale(-1,1)}
       if(v.metro)drawInterior(k,px,py,cw/SPR_W,lit);else if(v.wins)drawInteriorR(k,c,px,py,ppm,lit);
       drawVehWheels(ctx,v,px,py,ppm,'back',S.wd||0,S.slipd||0,c.flip,dt);
-      ctx.drawImage(spr,px,py,cw,ch);if(v.metro){drawMetroBogies(ctx,px,py,cw/SPR_W,!lit);drawMetroHubs(px,py,cw/SPR_W,S.wd||0,c.flip,dt)}drawVehWheels(ctx,v,px,py,ppm,'front',S.wd||0,S.slipd||0,c.flip,dt);if(v.board&&ppm>10)drawBoard(v,px,py,ppm);if(v.steam)drawRods(v,px,py,ppm);ctx.restore()}
+      ctx.drawImage(spr,px,py,cw,ch);if(v.metro){ctx.drawImage(metroBogieImg(!lit),px,py,cw,ch);drawMetroHubs(px,py,cw/SPR_W,S.wd||0,c.flip,dt)}drawVehWheels(ctx,v,px,py,ppm,'front',S.wd||0,S.slipd||0,c.flip,dt);if(v.board&&ppm>10)drawBoard(v,px,py,ppm);if(v.steam)drawRods(v,px,py,ppm);ctx.restore()}
     else{ctx.fillStyle='#3d6c95';ctx.fillRect(px,py+ch*.12,cw,ch*.62)}
     if(S.doors>0)DOORL.forEach((d,i)=>{if(d.k===k)drawDoor(i,ppm,railY,X,lit)});ctx.restore()}
   if(R.rail){railCouplers(ppm,railY,X)}else{drawCouplers(ppm,railY,X);drawHeadlight(ppm,railY,X)}
@@ -2257,7 +2260,7 @@ function menuScene(){const c=$('mmc');if(!c){MM=null;return}
   let tl=0;const list=keys.map(k=>{const v=veh(k);const o={v,off:tl};tl+=v.L+.12;return o});
   const speed=9,span=w/ppm+tl+10,front=((MM.t*speed)%span)-5;
   for(const o of list){const v=o.v,left=front-o.off-v.L,x=left*ppm;if(x>w||x+v.L*ppm<0)continue;
-    if(v.metro){if(sprOK(img))g.drawImage(img,x,ry-CAR_H*ppm,v.L*ppm,CAR_H*ppm);drawMetroBogies(g,x,ry-CAR_H*ppm,v.L*ppm/SPR_W,false)}else{const im=v.img||v.cv;if(im){drawVehWheels(g,v,x,ry-v.H*ppm,ppm,'back',MM.t*speed,0,false,0);g.drawImage(im,x,ry-v.H*ppm,v.L*ppm,v.H*ppm);drawVehWheels(g,v,x,ry-v.H*ppm,ppm,'front',MM.t*speed,0,false,0);if(lit>.3&&v.dk){g.globalAlpha=Math.min(1,lit*.9);g.drawImage(v.dk,x,ry-v.H*ppm,v.L*ppm,v.H*ppm);g.globalAlpha=1}}}}
+    if(v.metro){if(sprOK(img))g.drawImage(img,x,ry-CAR_H*ppm,v.L*ppm,CAR_H*ppm);g.drawImage(metroBogieImg(false),x,ry-CAR_H*ppm,v.L*ppm,CAR_H*ppm)}else{const im=v.img||v.cv;if(im){drawVehWheels(g,v,x,ry-v.H*ppm,ppm,'back',MM.t*speed,0,false,0);g.drawImage(im,x,ry-v.H*ppm,v.L*ppm,v.H*ppm);drawVehWheels(g,v,x,ry-v.H*ppm,ppm,'front',MM.t*speed,0,false,0);if(lit>.3&&v.dk){g.globalAlpha=Math.min(1,lit*.9);g.drawImage(v.dk,x,ry-v.H*ppm,v.L*ppm,v.H*ppm);g.globalAlpha=1}}}}
   if(lit>.05){g.save();g.globalCompositeOperation='multiply';g.fillStyle=rgb(nightTint(D));g.fillRect(0,hz-h*.3,w,h);g.restore();
     g.save();g.globalCompositeOperation='lighter';for(const o of list){const v=o.v,x=(front-o.off-v.L)*ppm;if(x>w||x+v.L*ppm<0)continue;
       if(v.wins)for(const[a0,a1]of v.wins){g.fillStyle=`rgba(255,214,150,${.45*lit})`;g.fillRect(x+a0*ppm,ry-(v.H-v.winT)*ppm,(a1-a0)*ppm,(v.winB-v.winT)*ppm)}}
