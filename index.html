@@ -1696,7 +1696,7 @@ function rr(x,y,w,h,r){ctx.beginPath();if(ctx.roundRect)ctx.roundRect(x,y,w,h,r)
 function render(dt){
   ctx.setTransform(dpr,0,0,dpr,0,0);
   const tp0=camPPM();cam.ppm=cam.ppm?cam.ppm+(tp0-cam.ppm)*Math.min(1,dt*6):tp0;const ppm=cam.ppm;ppmNow=ppm;
-  const railY=ppm<=H*.1?H*.63:H*.5+1.3*ppm;
+  const railY=ppm<=H*.1?(W<700?H*.56:H*.63):H*.5+1.3*ppm;
   const tgt=camTarget(ppm)+cam.off;if(cam.sw){cam.d=cam.last-tgt;cam.sw=false}cam.d*=Math.exp(-dt*5);const camX=tgt+cam.d;cam.last=camX;
   const X=wx=>(wx-camX)*ppm,vx0=camX-5,vx1=camX+W/ppm+5;
   const platTop=railY-PLAT_H*ppm,bandR=Math.max(8,Math.min(H-platTop-56,1.8*ppm));
