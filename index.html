@@ -652,6 +652,9 @@ function drawGbs(seed){const L=14,H=4.15,[c,g]=vCanvas(L,H),rand=srand(seed),col
 // a metrókocsi a meglévő képből, méterben
 function metroCar(){return{key:'metro',L:CAR_L,H:CAR_H,metro:true,pax:true,style:'slide',doors:DOORS.map(d=>({c:d.c*MPP,w:d.w*MPP})),doorT:DOOR_T*MPP,doorB:DOOR_B*MPP,
   wheels:WHEELS.map(w=>w*MPP),bogies:BOGIES.map(b=>b*MPP),headH:1.82,headX:.43,tail:[(SPR_H-222)*MPP,(SPR_H-42)*MPP],tailX:.25}}
+// vonókapocs és ütköző a két kocsi között: fekete kapocs, fém csatlakozó, fékcső
+function vCouplerArt(g,x,y,ppm){const s=Math.max(.04,ppm*.04);g.fillStyle='#2a2d2f';g.fillRect(x-.2*ppm,y-s,.4*ppm,s*2);g.strokeStyle=VOUT;g.lineWidth=.5;g.strokeRect(x-.2*ppm,y-s,.4*ppm,s*2);
+  g.fillStyle='#8a8f92';g.fillRect(x-s/2,y-s*2.2,s,s*1.2);g.strokeStyle='#5c2318';g.lineWidth=Math.max(.6,ppm*.05);g.beginPath();g.moveTo(x-.1*ppm,y+s*1.4);g.quadraticCurveTo(x,y+s*3,x+.1*ppm,y+s*1.4);g.stroke()}
 const VEHB={bhv:drawBhv,v43:drawV43,m41:drawM41,m44:drawM44,bzmot:()=>drawBz(true),btx:()=>drawBz(false),eas1:()=>drawEas(1),eas2:()=>drawEas(2),zaes1:()=>drawZaes(3),zaes2:()=>drawZaes(4),gbs1:()=>drawGbs(5)};
 const VEHC={};
 // kerékképek: egyszer készülnek, futás közben forgatjuk őket; gyors forgásnál körkörösen elmosott változat is
@@ -666,8 +669,9 @@ function drawWheel(g,w,cx,cy,ppm,ang,spin){const o=wheelImg(w),sz=o.px/VK*ppm;g.
   const bl=clamp((Math.abs(spin)-.18)/.5,0,1);if(bl>0){g.globalAlpha=bl;g.drawImage(o.b,-sz/2,-sz/2,sz,sz);g.globalAlpha=1}g.restore();
   g.strokeStyle='rgba(255,255,255,.17)';g.lineWidth=Math.max(1,.02*ppm);g.beginPath();g.arc(cx,cy,o.R*.92*ppm,3.7,5.4);g.stroke()}
 // a jármű kerekei (hátsó réteg: a forgóváz mögött; elülső réteg: gőzmozdony kerekei a keret előtt)
-function drawVehWheels(g,v,px,py,ppm,layer,dist,slip,flip,dt){if(!v.wl)return;const sg=flip?-1:1,dr=v.steam?v.steam.dr:0;
-  for(const w of v.wl){const front=w.s==='spoke';if((layer==='front')!==front)continue;const drv=v.steam&&Math.abs(w.r-dr)<.01,d=dist+(drv?slip:0),ang=sg*d/w.r,spin=(dt||0)*(Math.abs((S&&S.v)||0)+(drv&&S&&S.slipT>0?8:0))/w.r;
+function drawVehWheels(g,v,px,py,ppm,layer,dist,slip,flip,dt){if(!v.wl||layer!=='front')return;const sg=flip?-1:1,dr=v.steam?v.steam.dr:0;
+  // minden kerék a test előtt forog: a forgóváz és a tengelyház a kerék mögé kerül, nem fordítva
+  for(const w of v.wl){const drv=v.steam&&Math.abs(w.r-dr)<.01,d=dist+(drv?slip:0),ang=sg*d/w.r,spin=(dt||0)*(Math.abs((S&&S.v)||0)+(drv&&S&&S.slipT>0?8:0))/w.r;
     drawWheel(g,w,px+w.x*ppm,py+w.y*ppm,ppm,ang,spin)}}
 // metrókocsi: a kerék közepét a keret takarja, az alsó, látható részén forgó jelölések
 function drawMetroHubs(px,py,sc,dist,flip,dt){const r=29*sc,ang=(flip?-1:1)*dist/(29*MPP),spin=dt*Math.abs(S.v)/(29*MPP);
@@ -702,7 +706,14 @@ function drawMetroBogies(g,px,py,sc,dk){const K=h=>dk?shade(h,-.45):h;g.save();g
 // a futómű-réteg egyszer készül el (sötét és világos változat), futás közben csak rárajzoljuk
 const MB_IMG={};
 function metroBogieImg(dk){const k=dk?1:0;if(MB_IMG[k])return MB_IMG[k];const c=document.createElement('canvas');c.width=SPR_W*2;c.height=SPR_H*2;const g=c.getContext('2d');g.scale(2,2);drawMetroBogies(g,0,0,1,dk);return MB_IMG[k]=c}
-function veh(k){if(k==='metro')return VEHC.metro||(VEHC.metro=metroCar());if(!VEHC[k]){VREC=[];let v;try{v=VEHB[k]()}finally{v&&(v.wl=VREC);VREC=null}Object.assign(v,vFinish(v.cv));VEHC[k]=v}return VEHC[k]}
+function veh(k){if(k==='metro')return VEHC.metro||(VEHC.metro=metroCar());if(!VEHC[k]){VREC=[];let v;try{v=VEHB[k]()}finally{v&&(v.wl=VREC);VREC=null}vAge(v,k);Object.assign(v,vFinish(v.cv));VEHC[k]=v}return VEHC[k]}
+// kopás és szennyeződés: a metrókép rozsdás, koszos festése a többi járműre is kerül (egyszer, építéskor)
+function vAge(v,k){const g=v.cv.getContext('2d'),rand=srand(v.L*97+v.H*13+k.length*7),steam=/^(eu|m424|br52)/.test(k);
+  vWeather(g,rand,v.L,v.H,steam?.95:1.1);
+  // piszkos alsó sáv és porhomály, mint a metrókép: a kész testen, csak a meglévő pixeleken
+  g.save();g.globalCompositeOperation='source-atop';
+  g.fillStyle=vg(g,v.H*.55,v.H,[[0,'rgba(45,36,26,0)'],[.7,'rgba(45,36,26,.28)'],[1,'rgba(38,30,22,.5)']]);g.fillRect(0,0,v.L,v.H);
+  g.fillStyle='rgba(120,110,92,.13)';g.fillRect(0,0,v.L,v.H);g.restore()}
 const CONSISTS={eu:['eu','eu_t','tep','sovo','tep2'],m424:['m424','m424_t','mavg','mavo'],br52:['br52','br52_t','g10','om'],metro:['metro','metro','metro','metro','metro'],bzmot:['bzmot','btx'],m41:['m41','bhv','bhv','bhv'],v43:['v43','bhv','bhv','bhv','bhv'],m44:['m44','eas1','eas2','zaes1','zaes2','zaes1','gbs1','eas1']};
 const VNAME={metro:'81-717 metró',bzmot:'Bzmot motorvonat',m41:'M41 „Csörgő”',v43:'V43 „Szili” (Papagáj)',m44:'M44 „Bobó”'};
 // a szerelvény: kocsik a vonat elejétől hátrafelé, eltolással (off: a vonat elejétől a kocsi elejéig)
@@ -837,6 +848,8 @@ function garScene(){const c=$('gcv');if(!c||!GAR)return;const now=performance.no
   GAR.slide*=Math.exp(-dt*5);const front=w*.86/ppm+GAR.slide*w*.6/ppm;
   for(const o of list){const v=o.v,x=(front-o.off-v.L)*ppm;if(x>w||x+v.L*ppm<0)continue;
     if(v.metro){if(sprOK(img))g.drawImage(img,x,ry-CAR_H*ppm,v.L*ppm,CAR_H*ppm);g.drawImage(metroBogieImg(false),x,ry-CAR_H*ppm,v.L*ppm,CAR_H*ppm)}else{const im=v.img||v.cv;if(im){drawVehWheels(g,v,x,ry-v.H*ppm,ppm,'back',front,0,false,0);g.drawImage(im,x,ry-v.H*ppm,v.L*ppm,v.H*ppm);drawVehWheels(g,v,x,ry-v.H*ppm,ppm,'front',front,0,false,0)}}}
+  // csatlakozók a kocsik között (a garázsban is látszanak, a játékban a vasúti kapcsolat rajzolja)
+  for(let i=0;i+1<list.length;i++){const a=list[i];vCouplerArt(g,(front-a.off-a.v.L)*ppm-.06*ppm,ry-.5*ppm,ppm)}
   if(lit>.05){g.save();g.globalCompositeOperation='multiply';g.fillStyle=rgb(nightTint(D));g.fillRect(0,0,w,h);g.restore()}
   GAR.blink=Math.max(0,GAR.blink-dt);const lon=GAR.light||GAR.blink>0||lit>.4,v0=list[0].v;
   if(lon){const hx=front*ppm,hy=ry-(v0.headH||1.8)*ppm;g.save();g.globalCompositeOperation='lighter';if(GAR.light||lit>.4){const lg=g.createLinearGradient(hx,0,w,0);lg.addColorStop(0,'rgba(255,240,205,.35)');lg.addColorStop(1,'rgba(255,240,205,0)');g.fillStyle=lg;g.beginPath();g.moveTo(hx,hy-.1*ppm);g.lineTo(w,ry-4*ppm);g.lineTo(w,ry+.3*ppm);g.lineTo(hx,hy+.1*ppm);g.fill()}
