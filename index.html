@@ -129,6 +129,7 @@ button:active{transform:translateY(1px)}
 .mbtn.ic>svg{width:26px;height:26px;flex:none;opacity:.92}
 .mbtn.ic>span{min-width:0;display:flex;flex-direction:column}
 .mbtn.ic small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mbtn.star{grid-column:1/-1;justify-content:center;font-size:15px;padding:7px 14px;opacity:.85}
 .mbtn.acc{border-color:#2a5c94;background:#14263b}
 .mbtn:hover{filter:brightness(1.08)}
 .mgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
@@ -2422,7 +2423,7 @@ function updHud(){
   for(let i=0;i<R.n;i++){const d=$('pd'+i);if(d)d.classList.toggle('done',!!S.served[i])}
 }
 
-const APP_VER='2026.11.10-1',SHARE_URL='https://m3metro.vercel.app';
+const APP_VER='2026.11.19-1',SHARE_URL='https://m3metro.vercel.app';
 /* ---------- QR-kód generátor (bájt mód, M szint, 1–10. verzió) ---------- */
 const QR=(()=>{
   const ECC=[-1,10,16,26,18,24,16,18,22,22,26],NB=[-1,1,1,1,2,2,4,4,4,5,5];
@@ -2597,14 +2598,15 @@ function showMain(){
     <button class="mbtn ic acc" id="mVeh">${ico('train')}<span>Járművek<small>${pickLabel(ROUTES[cfg.route])} · lapozd, próbáld ki</small></span></button>
     <button class="mbtn ic hist" id="mHist">${ico('hist')}<span>Idővonal 1939–1945<small>II. világháború a vasúton · Leningrád, Budapest, Belarusz</small></span></button>
     <div class="mgrid"><button class="mbtn ic sm" id="mSet">${ico('gear')}<span>Beállítások</span></button><button class="mbtn ic sm" id="mHelp">${ico('help')}<span>Irányítás</span></button><button class="mbtn ic sm" id="mShare">${ico('share')}<span>Megosztás</span></button>
-     <button class="mbtn ic sm" id="mCode">${ico('code')}<span>Kód</span></button><button class="mbtn ic sm" id="mUpd">${ico('upd')}<span>Frissítés<small>v${APP_VER}</small></span></button><button class="mbtn ic sm quit" id="mQuit">${ico('quit')}<span>Kilépés</span></button></div>
+     <button class="mbtn ic sm" id="mCode">${ico('code')}<span>Kód</span></button><button class="mbtn ic sm" id="mUpd">${ico('upd')}<span>Frissítés<small>v${APP_VER}</small></span></button><button class="mbtn ic sm quit" id="mQuit">${ico('quit')}<span>Kilépés</span></button>
+     <button class="mbtn ic sm star" id="mStar"><span>⭐ Csillag a GitHubon</span></button></div>
    </div></div>`);
   offlineStatus();
   if(inGame())$('mCont').onclick=resume;
   $('mNew').onclick=()=>inGame()?showConfirm(showMain,showRoutes,'Új menet indítása','A jelenlegi menet és pontjai elvesznek.'):showRoutes();
   $('mHist').onclick=()=>inGame()?showConfirm(showMain,()=>showHistory(showMain),'Idővonal','A jelenlegi menet és pontjai elvesznek.'):showHistory(showMain);
   $('mVeh').onclick=()=>inGame()?showConfirm(showMain,()=>showGarage(showMain),'Járműcsere','A jelenlegi menet és pontjai elvesznek.'):showGarage(showMain);
-  $('mSet').onclick=()=>showSettings(showMain);$('mShare').onclick=()=>showShare(showMain);$('mCode').onclick=()=>showCodeEntry(showMain);$('mUpd').onclick=()=>showUpdate(showMain);$('mHelp').onclick=()=>showHelp(showMain);
+  $('mSet').onclick=()=>showSettings(showMain);$('mShare').onclick=()=>showShare(showMain);$('mCode').onclick=()=>showCodeEntry(showMain);$('mUpd').onclick=()=>showUpdate(showMain);$('mHelp').onclick=()=>showHelp(showMain);$('mStar').onclick=()=>window.open('https://github.com/strattila90-hue/M3Metro','_blank');
   $('mQuit').onclick=()=>inGame()?showConfirm(showMain,quitApp,'Kilépés','A jelenlegi menet és pontjai elvesznek.'):quitApp();
 }
 function quitApp(){
